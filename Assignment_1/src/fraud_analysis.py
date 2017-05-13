@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+from __future__ import division
 import pandas as pd
 import numpy as np
 import time
@@ -40,20 +40,11 @@ class Fraud:
         result = self.df["card_id"].value_counts().to_dict()
         return result
 
-
-    # Output: dataframe that contains only the "Chargebacks"
-    def filter_chargeback_records(self):
-        result = self.df.loc[self.df["simple_journal"] == "Chargeback"]
-        return result
-
-    # Output: dataframe that contains only the "Settled"
+    # Output: dataframe that contains only the "category"
     def filter_records(self, category):
         result = self.df.loc[self.df["simple_journal"] == category]
         return result
 
-    def filter_refused_records(self):
-        result = self.df.loc[self.df["simple_journal"] == "Refused"]
-        return result
 
     def plot_data_balance(self):
         objects = tuple(self.df["simple_journal"].unique())
@@ -73,31 +64,61 @@ class Fraud:
         time_stamp = time.strptime(date_string, '%Y-%m-%d %H:%M:%S')
         return time.mktime(time_stamp)
 
+    @staticmethod
+    def get_percentage_of_frauds_per_country(trans_dict, chargebacks_dict):
+        normalized_fpc = {}
+        for key in trans_dict:
+            if key in chargebacks_dict:
+                normalized_fpc[key] = chargebacks_dict[key] / trans_dict[key]
+        return normalized_fpc
 
-# Initialization of dataframe object
-fraud_obj = Fraud()
-print(fraud_obj.df.shape)
-
-# print fraud per country
-#print(fraud_obj.total_per_country())
-
-# print fraud per card id
-cardid_dict = fraud_obj.total_per_cardid()
-plt.bar(list(cardid_dict.keys()), cardid_dict.values(), width=1.0, color='g')
-
-
-# print the different values of 'simple_journal'
-print(fraud_obj.df["simple_journal"].unique())
-
+# Initialization of dataframe object (transactions)
+trans_obj = Fraud()
+print(trans_obj.df.shape)
 
 #filter the dataframe per simple_journal category
-#chargebacks_df = fraud_obj.filter_records("Chargeback")
-#settled_df = fraud_obj.filter_records("Settled")
+chargebacks_obj = Fraud()
+chargebacks_obj.df = chargebacks_obj.filter_records("Chargeback")
+
+settled_obj = Fraud()
+settled_obj.df = settled_obj.filter_records("Settled")
+
 #refused_df = fraud_obj.filter_records("Refused")
 
 
+# get transactions per country (dictionary)
+trans_per_country = trans_obj.total_per_country()
+print("Number of countries in the dataset: %d" % len(trans_per_country))
+
+# get fraud transactions per country (dictionary)
+fraud_per_country = chargebacks_obj.total_per_country()
+print("Number of countries with frauds in the dataset: %d" % len(fraud_per_country))
+
+
+normalized_fpc = Fraud.get_percentage_of_frauds_per_country(trans_per_country, fraud_per_country)
+
+print(normalized_fpc)
+
+
+# print fraud per card id
+#cardid_dict = trans_obj.total_per_cardid()
+#plt.bar(list(cardid_dict.keys()), cardid_dict.values(), width=1.0, color='g')
+#D = trans_per_country
+#print(D.values())
+
+#plt.bar(range(len(D)), D.values(), align='center')
+#plt.xticks(range(len(D)), D.keys())
+
+#plt.show()
+
+
+
+# print the different values of 'simple_journal'
+print(trans_obj.df["simple_journal"].unique())
+
+
 #barplot with number of settled, chargebacks and refused transactions
-#fraud_obj.plot_data_balance()
+trans_obj.plot_data_balance()
 
 
 # NOTES
