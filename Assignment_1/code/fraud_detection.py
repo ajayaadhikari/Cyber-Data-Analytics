@@ -21,7 +21,7 @@
 
 # In[7]:
 
-get_ipython().magic(u'matplotlib inline')
+#   get_ipython().magic(u'matplotlib inline')
 import datetime
 import time
 import matplotlib.pyplot as plt
@@ -95,7 +95,7 @@ def aggregate_mean(before_aggregate):
         #print before_aggregate[0]
     return after_aggregate
 if __name__ == "__main__":
-    src = '/home/bill/github_repos/cda/Cyber-Data-Analytics/fradu_credit_card_data/data_for_student_case.csv'
+    src = '/home/bill/github_repos/cda/Cyber-Data-Analytics/Assignment_1/fraud_credit_card_data/data_for_student_case.csv'
     ah = open(src, 'r')
     x = []#contains features
     y = []#contains labels
@@ -215,8 +215,8 @@ for item in x:
 #x_mean = []
 #x_mean = aggregate_mean(x);
 x_mean = x;
-des = '/Users/Qlin/Documents/TA/fraud_credit_card/original_data.csv'
-des1 = '/Users/Qlin/Documents/TA/fraud_credit_card/aggregate_data.csv'
+des = '/home/bill/github_repos/cda/Cyber-Data-Analytics/Assignment_1/fraud_credit_card_data/original_data.csv'
+des1 = '/home/bill/github_repos/cda/Cyber-Data-Analytics/Assignment_1/fraud_credit_card_data/aggregate_data.csv'
 ch_dfa = open(des,'w')
 #ch_dfa.write('txid,bookingdate,issuercountrycode,txvariantcode,bin,amount,'+
 #             'currencycode,shoppercountrycode,shopperinteraction,simple_journal,'+
