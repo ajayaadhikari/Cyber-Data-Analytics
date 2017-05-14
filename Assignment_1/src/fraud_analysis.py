@@ -1,5 +1,8 @@
 from __future__ import division
 from imblearn.over_sampling import SMOTE
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn import decomposition
 import pandas as pd
 import numpy as np
 import time
@@ -46,6 +49,12 @@ class Fraud:
     def get_selected_features(self, feature_list):
         return self.df[feature_list]
 
+    def split_to_train_test(self, perc):
+        number_of_records = self.df.shape[0]
+        train_set = self.df.iloc[:int(number_of_records * perc)]
+        test_set = self.df.iloc[int(number_of_records * perc):]
+        return train_set, test_set
+
     # Output format: {"US": 112, ...}
     def total_per_country(self):
         result = self.df["issuercountrycode"].value_counts().to_dict()
@@ -79,6 +88,13 @@ class Fraud:
         plt.ylabel('Number of Transactions`')
         plt.title('Balance of the Data')
         plt.show()
+
+    @staticmethod
+    # The minority class gets oversampled to balance with the majority class
+    # Output format: X_resampled, y_resampled
+    def resample_smote2(X, y):
+        sm = SMOTE()
+        return sm.fit_sample(X, y)
 
     @staticmethod
     def string_to_timestamp(date_string):  # convert time string to float value
@@ -148,7 +164,7 @@ class Fraud:
 # LET THE MAGIC BEGIN
 
 selected_features = ["issuercountrycode", "txvariantcode", "amount", "shopperinteraction", "cardverificationcodesupplied",
-                     "cvcresponsecode", "simple_journal", "creationdate"]
+                     "cvcresponsecode", "simple_journal"]
 
 label = "simple_journal"
 features_for_convertion = ["issuercountrycode", "txvariantcode", "shopperinteraction"]
@@ -170,28 +186,88 @@ trans_sel_features = Fraud()
 trans_sel_features.df = trans_obj.get_selected_features(selected_features)
 
 print trans_sel_features.df.shape
+
 # convertion of features for SMOTE
 trans_for_SMT = Fraud()
 trans_for_SMT.df = pd.get_dummies(trans_sel_features.df, columns=["txvariantcode","issuercountrycode", "shopperinteraction"])
 
 
 # sort dataset by date
-trans_for_SMT.df['creationdate'] =pd.to_datetime(trans_for_SMT.df.creationdate)
-trans_for_SMT.df.sort_values(by="creationdate")
+#trans_for_SMT.df['creationdate'] =pd.to_datetime(trans_for_SMT.df.creationdate)
+#trans_for_SMT.df.sort_values(by="creationdate")
+
+# remove rows with missed values
+trans_for_SMT.df = trans_for_SMT.df.dropna(axis=0, how='any')
+
+# split dataset to train and test set
+# IMPORTANT: smote only to training set !!
+# Take into account date ordering
+
+
+features_without_labels = list(trans_for_SMT.df)
+features_without_labels.remove(label)
+features_list, labels_list = trans_for_SMT.get_records_and_labels(features_without_labels)
+
+X_train, X_test, y_train, y_test = train_test_split(features_list, labels_list, test_size=0.55,random_state=42)
+
+#train_set, test_set = trans_for_SMT.split_to_train_test(0.4)
+
+# convert train_set and test_set to Fraud object
+#train_obj = Fraud()
+#train_obj.df = train_set
+
+#test_obj = Fraud()
+#test_obj.df = test_set
+
+# PCA
+print X_train
+pca = decomposition.PCA(n_components=15)
+X_train = pca.fit_transform(X_train)
+X_test = pca.transform(X_test)
 
 
 # SMOTE
 # create training features list
-training_features = list(trans_for_SMT.df)
+#training_features = list(train_set)
+#print training_features
 # training features => remove label, and creation time
-training_features.remove("creationdate")
-training_features.remove(label)
+#training_features.remove(label)
 
-# remove rows with missed values
-trans_for_SMT.df = trans_for_SMT.df.dropna(axis=0, how='any')
 # sampling
-x, y = trans_for_SMT.resample_smote(training_features)
-print set(y)
+#print X_train
+#print y_train
+
+features_train, labels_train = Fraud.resample_smote2(X_train, y_train)
+
+# KNN classifier
+neigh = KNeighborsClassifier(n_neighbors=4)
+neigh.fit(X_train, y_train)
+#print neigh.score(X_test, y_test)
+y_predict = neigh.predict(X_test)
+convert_zero_one = lambda x: map(lambda y: 0 if y=="Settled" else 1, x)
+y_predict = convert_zero_one(y_predict)
+y_test = convert_zero_one(y_test)
+
+TP = 0
+FP = 0
+FN = 0
+TN = 0
+for i in xrange(len(y_predict)):
+    if y_test[i]==1 and y_predict[i]==1:
+        TP += 1
+    if y_test[i]==0 and y_predict[i]==1:
+        FP += 1
+    if y_test[i]==1 and y_predict[i]==0:
+        FN += 1
+    if y_test[i]==0 and y_predict[i]==0:
+        TN += 1
+print 'TP: '+ str(TP)
+print 'FP: '+ str(FP)
+print 'FN: '+ str(FN)
+print 'TN: '+ str(TN)
+
+#Fraud.knn_classifier(features_train, labels_train, features_test, labels_test)
+
 
 
 #filter the dataframe per simple_journal category
