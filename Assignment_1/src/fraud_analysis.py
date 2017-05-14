@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import time
 import matplotlib.pyplot as plt
+import operator
 
 
 data_path = '../datasets/data_for_student_case.csv'
@@ -28,12 +29,17 @@ class Fraud:
         # Change data types of some columns
         self.df["bookingdate"].apply(self.string_to_timestamp)
         self.df["card_issuer_identifier"].apply(float)
-        self.df["amount"].apply(float)
+        self.df["amount"].apply(lambda x: float(x)/100)
 
     # Output format: {"US": 112, ...}
     def total_per_country(self):
         result = self.df["issuercountrycode"].value_counts().to_dict()
         #result.to_csv(path=path,index_label=["issuercountrycode","transaction_count"],index=True)
+        return result
+
+    # Output: dictionary
+    def total_per_cardtype(self):
+        result = self.df["txvariantcode"].value_counts().to_dict()
         return result
 
     def total_per_cardid(self):
@@ -53,7 +59,7 @@ class Fraud:
         num_refused = self.df.loc[self.df["simple_journal"] == "Refused"].shape[0]
         num_settled = (self.df.loc[self.df["simple_journal"] == "Settled"]).shape[0]
         number_of_records = [num_chargeback, num_refused, num_settled]
-        plt.bar(y_pos, number_of_records, align='center', alpha=0.4)
+        plt.bar(y_pos, number_of_records, align='center', alpha=0.4, color='red')
         plt.xticks(y_pos, objects)
         plt.ylabel('Number of Transactions`')
         plt.title('Balance of the Data')
@@ -65,61 +71,90 @@ class Fraud:
         return time.mktime(time_stamp)
 
     @staticmethod
-    def get_percentage_of_frauds_per_country(trans_dict, chargebacks_dict):
+    def get_percentage_of_frauds(trans_dict, chargebacks_dict):
         normalized_fpc = {}
         for key in trans_dict:
             if key in chargebacks_dict:
                 normalized_fpc[key] = chargebacks_dict[key] / trans_dict[key]
         return normalized_fpc
 
+    @staticmethod
+    def plot_dictionary_sorted(D, figure_title):
+        sorted_D = sorted(D.items(), key = operator.itemgetter(1))
+        values = [x[1] for x in sorted_D]
+        keys = [x[0] for x in sorted_D]
+        plt.bar(range(len(sorted_D)), values, align='center',alpha=0.4, color = 'red')
+        plt.xticks(range(len(sorted_D)), keys)
+        plt.title(figure_title)
+        plt.show()
+
+    @staticmethod
+    def get_plots():
+        # barplot with number of settled, chargebacks and refused transactions
+        trans_obj = Fraud()
+        trans_obj.plot_data_balance()
+        # get transactions per country (dictionary)
+        trans_per_country = trans_obj.total_per_country()
+        # print("Number of countries in the dataset: %d" % len(trans_per_country))
+
+        # plot normalized fraud per countries
+        # get fraud transactions per country (dictionary)
+        chargebacks_obj = Fraud()
+        chargebacks_obj.df = chargebacks_obj.filter_records("Chargeback")
+        fraud_per_country = chargebacks_obj.total_per_country()
+        print("Number of countries with frauds in the dataset: %d" % len(fraud_per_country))
+        normalized_fpc = Fraud.get_percentage_of_frauds(trans_per_country, fraud_per_country)
+        Fraud.plot_dictionary_sorted(normalized_fpc, "Normalized number of Frauds per country")
+
+        # plot normalized cardType
+        # get transactions per card type (dictionary)
+        trans_per_card_type = trans_obj.total_per_cardtype()
+        # get fraud transactions per card type (dictionary)
+        fraud_per_cardtype = chargebacks_obj.total_per_cardtype()
+        normalized_cardtype = Fraud.get_percentage_of_frauds(trans_per_card_type, fraud_per_cardtype)
+        Fraud.plot_dictionary_sorted(normalized_cardtype, "Normalized  number of frauds per cardtype")
+
+        # boxplots for settled and fraud amounts
+        # get settled transactions
+        settled_obj = Fraud()
+        settled_obj.df = settled_obj.filter_records("Settled")
+
+        fig, (ax1, ax2) = plt.subplots(1, 2, sharex=False, sharey=True)
+        axes = settled_obj.df.boxplot(column="amount", ax=ax1, sym='', showfliers=True)
+        ax1.margins(y=0.05)
+        ax1.set_title("settled")
+
+        box_chargeback = chargebacks_obj.df.boxplot(column="amount", ax=ax2, sym='', showfliers=True)
+        ax2.margins(y=0.05)
+        ax2.set_title("Chargeback")
+        plt.show()
+
+
 # Initialization of dataframe object (transactions)
 trans_obj = Fraud()
 print(trans_obj.df.shape)
 
+
 #filter the dataframe per simple_journal category
 chargebacks_obj = Fraud()
 chargebacks_obj.df = chargebacks_obj.filter_records("Chargeback")
-
 settled_obj = Fraud()
 settled_obj.df = settled_obj.filter_records("Settled")
+#refused_obj = Fraud()
+#refused_obj.df = refused_obj.filter_records("Refused")
 
-#refused_df = fraud_obj.filter_records("Refused")
-
-
-# get transactions per country (dictionary)
-trans_per_country = trans_obj.total_per_country()
-print("Number of countries in the dataset: %d" % len(trans_per_country))
-
-# get fraud transactions per country (dictionary)
-fraud_per_country = chargebacks_obj.total_per_country()
-print("Number of countries with frauds in the dataset: %d" % len(fraud_per_country))
-
-
-normalized_fpc = Fraud.get_percentage_of_frauds_per_country(trans_per_country, fraud_per_country)
-
-print(normalized_fpc)
-
-
-# print fraud per card id
-#cardid_dict = trans_obj.total_per_cardid()
-#plt.bar(list(cardid_dict.keys()), cardid_dict.values(), width=1.0, color='g')
-#D = trans_per_country
-#print(D.values())
-
-#plt.bar(range(len(D)), D.values(), align='center')
-#plt.xticks(range(len(D)), D.keys())
-
-#plt.show()
+print(trans_obj.df["amount"].max())
+print(settled_obj.df["amount"].max())
+print(chargebacks_obj.df["amount"].max())
 
 
 
-# print the different values of 'simple_journal'
-print(trans_obj.df["simple_journal"].unique())
-
-
-#barplot with number of settled, chargebacks and refused transactions
-trans_obj.plot_data_balance()
+#get plots
+#Fraud.get_plots()
 
 
 # NOTES
 # simple_journal = {Settled, Chargeback} We have removed "Refused"
+
+# print the different values of 'simple_journal'
+#print(trans_obj.df["simple_journal"].unique())
