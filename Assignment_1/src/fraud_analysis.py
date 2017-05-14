@@ -1,6 +1,8 @@
 from __future__ import division
 from imblearn.over_sampling import SMOTE
+from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import train_test_split
+from sklearn.model_selection import KFold
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn import decomposition
 import pandas as pd
@@ -160,6 +162,50 @@ class Fraud:
         ax2.set_title("Chargeback")
         plt.show()
 
+    @staticmethod
+    def evaluate_knn(feature_vector, labels, k):
+        k_fold = KFold(n_splits=10)
+        real_labels = []
+        predicted_labels = []
+        print(len(labels))
+        total = 0
+        for train, test in k_fold.split(feature_vector):
+            features_train, labels_train = Fraud.resample_smote2(feature_vector[train], labels[train])
+            features_test, labels_test = feature_vector[test], labels[test]
+            total += len(test)
+
+            # Build classifier using training set
+            knn_classifier = KNeighborsClassifier(n_neighbors=k)
+            knn_classifier.fit(features_train, labels_train)
+
+            # Save the labels for confusion matrix
+            real_labels.extend(labels_test)
+            predicted_labels.extend(knn_classifier.predict(features_test))
+        print("Total",total)
+
+        # convert labels to {0,1} , 0: Settled, 1: Chargeback
+        convert_zero_one = lambda x: map(lambda y: 0 if y == "Settled" else 1, x)
+        y_predict = convert_zero_one(predicted_labels)
+        y_test = convert_zero_one(real_labels)
+
+        TP = 0
+        FP = 0
+        FN = 0
+        TN = 0
+        for i in xrange(len(y_predict)):
+            if y_test[i] == 1 and y_predict[i] == 1:
+                TP += 1
+            if y_test[i] == 0 and y_predict[i] == 1:
+                FP += 1
+            if y_test[i] == 1 and y_predict[i] == 0:
+                FN += 1
+            if y_test[i] == 0 and y_predict[i] == 0:
+                TN += 1
+        print 'TP: ' + str(TP)
+        print 'FP: ' + str(FP)
+        print 'FN: ' + str(FN)
+        print 'TN: ' + str(TN)
+
 
 # LET THE MAGIC BEGIN
 
@@ -208,7 +254,7 @@ features_without_labels = list(trans_for_SMT.df)
 features_without_labels.remove(label)
 features_list, labels_list = trans_for_SMT.get_records_and_labels(features_without_labels)
 
-X_train, X_test, y_train, y_test = train_test_split(features_list, labels_list, test_size=0.55,random_state=42)
+#X_train, X_test, y_train, y_test = train_test_split(features_list, labels_list, test_size=0.55,random_state=42)
 
 #train_set, test_set = trans_for_SMT.split_to_train_test(0.4)
 
@@ -220,10 +266,10 @@ X_train, X_test, y_train, y_test = train_test_split(features_list, labels_list, 
 #test_obj.df = test_set
 
 # PCA
-print X_train
+#print X_train
 pca = decomposition.PCA(n_components=15)
-X_train = pca.fit_transform(X_train)
-X_test = pca.transform(X_test)
+pca_features = pca.fit_transform(features_list)
+#X_test = pca.transform(X_test)
 
 
 # SMOTE
@@ -237,34 +283,15 @@ X_test = pca.transform(X_test)
 #print X_train
 #print y_train
 
-features_train, labels_train = Fraud.resample_smote2(X_train, y_train)
+#features_train, labels_train = Fraud.resample_smote2(X_train, y_train)
 
 # KNN classifier
-neigh = KNeighborsClassifier(n_neighbors=4)
-neigh.fit(X_train, y_train)
+#neigh = KNeighborsClassifier(n_neighbors=4)
+#neigh.fit(X_train, y_train)
 #print neigh.score(X_test, y_test)
-y_predict = neigh.predict(X_test)
-convert_zero_one = lambda x: map(lambda y: 0 if y=="Settled" else 1, x)
-y_predict = convert_zero_one(y_predict)
-y_test = convert_zero_one(y_test)
+y_predict = Fraud.evaluate_knn(pca_features, labels_list, 3)
+    #neigh.predict(X_test)
 
-TP = 0
-FP = 0
-FN = 0
-TN = 0
-for i in xrange(len(y_predict)):
-    if y_test[i]==1 and y_predict[i]==1:
-        TP += 1
-    if y_test[i]==0 and y_predict[i]==1:
-        FP += 1
-    if y_test[i]==1 and y_predict[i]==0:
-        FN += 1
-    if y_test[i]==0 and y_predict[i]==0:
-        TN += 1
-print 'TP: '+ str(TP)
-print 'FP: '+ str(FP)
-print 'FN: '+ str(FN)
-print 'TN: '+ str(TN)
 
 #Fraud.knn_classifier(features_train, labels_train, features_test, labels_test)
 
