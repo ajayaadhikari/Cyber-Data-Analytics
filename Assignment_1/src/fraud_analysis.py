@@ -1,4 +1,5 @@
 from __future__ import division
+from imblearn.over_sampling import SMOTE
 import pandas as pd
 import numpy as np
 import time
@@ -24,12 +25,26 @@ class Fraud:
         self.df.rename(columns={'bin': 'card_issuer_identifier'}, inplace=True)
         # Delete rows with null values for card_issuer_identifier
         self.df = self.df[pd.notnull(self.df.card_issuer_identifier)]
-        #self.df = self.df[self.df.simple_journal != "Refused"]
+        self.df = self.df[self.df.simple_journal != "Refused"]
 
         # Change data types of some columns
         self.df["bookingdate"].apply(self.string_to_timestamp)
         self.df["card_issuer_identifier"].apply(float)
         self.df["amount"].apply(lambda x: float(x)/100)
+
+    # The minority class gets oversampled to balance with the majority class
+    # Output format: X_resampled, y_resampled
+    def resample_smote(self, columns_training):
+        X, y = self.get_records_and_labels(columns_training)
+        sm = SMOTE()
+        return sm.fit_sample(X, y)
+
+    def get_records_and_labels(self, columns):
+        return self.df[columns].values, self.df["simple_journal"].values
+
+    # Output: dataframe with selected features
+    def get_selected_features(self, feature_list):
+        return self.df[feature_list]
 
     # Output format: {"US": 112, ...}
     def total_per_country(self):
@@ -130,9 +145,53 @@ class Fraud:
         plt.show()
 
 
+# LET THE MAGIC BEGIN
+
+selected_features = ["issuercountrycode", "txvariantcode", "amount", "shopperinteraction", "cardverificationcodesupplied",
+                     "cvcresponsecode", "simple_journal", "creationdate"]
+
+label = "simple_journal"
+features_for_convertion = ["issuercountrycode", "txvariantcode", "shopperinteraction"]
+
+#### REMEMBER ############################################
+# issuercountrycode: needs different columns per country {1,0}
+# txvariantcode: same as above
+# shopperinteraction: {Ecom, ContAuth, POS} needs different columns
+# cardverificationcodesupplied: {True, False} which for python => {1,0} so it's ok
+# amount: numerical, can be used as it is
+# cvcresponsecode: binary, can be used as it is
+#### STOP REMEMBERING ############################################
+
 # Initialization of dataframe object (transactions)
 trans_obj = Fraud()
-print(trans_obj.df.shape)
+
+# Selection of specified features (returns dataframe)
+trans_sel_features = Fraud()
+trans_sel_features.df = trans_obj.get_selected_features(selected_features)
+
+print trans_sel_features.df.shape
+# convertion of features for SMOTE
+trans_for_SMT = Fraud()
+trans_for_SMT.df = pd.get_dummies(trans_sel_features.df, columns=["txvariantcode","issuercountrycode", "shopperinteraction"])
+
+
+# sort dataset by date
+trans_for_SMT.df['creationdate'] =pd.to_datetime(trans_for_SMT.df.creationdate)
+trans_for_SMT.df.sort_values(by="creationdate")
+
+
+# SMOTE
+# create training features list
+training_features = list(trans_for_SMT.df)
+# training features => remove label, and creation time
+training_features.remove("creationdate")
+training_features.remove(label)
+
+# remove rows with missed values
+trans_for_SMT.df = trans_for_SMT.df.dropna(axis=0, how='any')
+# sampling
+x, y = trans_for_SMT.resample_smote(training_features)
+print set(y)
 
 
 #filter the dataframe per simple_journal category
@@ -142,11 +201,6 @@ settled_obj = Fraud()
 settled_obj.df = settled_obj.filter_records("Settled")
 #refused_obj = Fraud()
 #refused_obj.df = refused_obj.filter_records("Refused")
-
-print(trans_obj.df["amount"].max())
-print(settled_obj.df["amount"].max())
-print(chargebacks_obj.df["amount"].max())
-
 
 
 #get plots
@@ -158,3 +212,6 @@ print(chargebacks_obj.df["amount"].max())
 
 # print the different values of 'simple_journal'
 #print(trans_obj.df["simple_journal"].unique())
+
+#df.to_pickle("augmented_dataframe")
+#print(df.shape)
