@@ -26,6 +26,11 @@ selected_features = ["txid", "issuercountrycode", "txvariantcode", "card_issuer_
                     "cardverificationcodesupplied", "cvcresponsecode", "accountcode", "creationdate_hour",
                      "creationdate_dayofweek",'creationdate_month','creationdate_dayofmonth',  "card_id", "ip_id", "mail_id"]
 
+selected_dummy_features = [ "issuercountrycode", "txvariantcode", "card_issuer_identifier",
+                                 "amount", "currencycode", "shoppercountrycode", "shopperinteraction", "simple_journal",
+                                 "cardverificationcodesupplied", "cvcresponsecode", "accountcode",
+                                "creationdate_hour", "creationdate_dayofweek",'creationdate_month', 'creationdate_dayofmonth']
+
     #[ "txvariantcode", "amount", "shopperinteraction", "cardverificationcodesupplied",
     #                 "cvcresponsecode", "simple_journal", "creationdate_hour", "creationdate_dayofweek",
     #                  "issuercountrycode",'creationdate_month','creationdate_dayofmonth']
@@ -33,10 +38,11 @@ selected_features = ["txid", "issuercountrycode", "txvariantcode", "card_issuer_
 label = "simple_journal"
 features_for_convertion = ["issuercountrycode", "txvariantcode", "shopperinteraction"]
 
+
 class Fraud:
     def __init__(self):
         self.load_data()
-        self.run()
+        #self.run()
 
     def load_data(self):
         # Read from csv
@@ -49,7 +55,7 @@ class Fraud:
         self.df.rename(columns={'bin': 'card_issuer_identifier'}, inplace=True)
         # Delete rows with null values for card_issuer_identifier
         self.df = self.df[pd.notnull(self.df.card_issuer_identifier)]
-        self.df = self.df[self.df.simple_journal != "Refused"]
+        #self.df = self.df[self.df.simple_journal != "Refused"]
 
         # Change data types of some columns
         #self.df["bookingdate"].apply(self.string_to_timestamp)
@@ -78,17 +84,33 @@ class Fraud:
     #     test_set = self.df.iloc[int(number_of_records * perc):]
     #     return train_set, test_set
 
-    # Output format: {"US": 112, ...}
+    # # Output format: {"US": 112, ...}
     def total_per_country(self):
-        result = self.df["issuercountrycode"].value_counts().to_dict()
-        #result.to_csv(path=path,index_label=["issuercountrycode","transaction_count"],index=True)
-        return result
+         result = self.df["issuercountrycode"].value_counts().to_dict()
+         #result.to_csv(path=path,index_label=["issuercountrycode","transaction_count"],index=True)
+         return result
 
 
 
     # Output: dictionary
     def total_per_cardtype(self):
         result = self.df["txvariantcode"].value_counts().to_dict()
+        return result
+
+    def total_per_day_week(self):
+        result = self.df["creationdate_dayofweek"].value_counts().to_dict()
+        return result
+
+    def total_per_day_month(self):
+        result = self.df["creationdate_dayofmonth"].value_counts().to_dict()
+        return result
+
+    def total_per_day(self):
+        result = self.df["creationdate_dayofweek"].value_counts().to_dict()
+        return result
+
+    def total_per_hour(self):
+        result = self.df["creationdate_hour"].value_counts().to_dict()
         return result
 
     def total_per_cardid(self):
@@ -105,14 +127,18 @@ class Fraud:
         objects = tuple(self.df["simple_journal"].unique())
         y_pos = np.arange(len(objects))
         num_chargeback = self.df.loc[self.df["simple_journal"] == "Chargeback"].shape[0]
+        print num_chargeback
         num_refused = self.df.loc[self.df["simple_journal"] == "Refused"].shape[0]
+        print num_refused
         num_settled = (self.df.loc[self.df["simple_journal"] == "Settled"]).shape[0]
+        print num_settled
         number_of_records = [num_chargeback, num_refused, num_settled]
         plt.bar(y_pos, number_of_records, align='center', alpha=0.4, color='red')
         plt.xticks(y_pos, objects)
         plt.ylabel('Number of Transactions`')
         plt.title('Balance of the Data')
         plt.show()
+
 
     @staticmethod
     def normalize_all_columns(x):
@@ -124,7 +150,7 @@ class Fraud:
     # The minority class gets oversampled to balance with the majority class
     # Output format: X_resampled, y_resampled
     def resample_smote(X, y):
-        sm = SMOTE(ratio=0.1)
+        sm = SMOTE(ratio=0.008)
         return sm.fit_sample(X, y)
 
     @staticmethod
@@ -141,8 +167,11 @@ class Fraud:
         return normalized_fpc
 
     @staticmethod
-    def plot_dictionary_sorted(D, figure_title):
-        sorted_D = sorted(D.items(), key = operator.itemgetter(1))
+    def plot_dictionary_sorted(D, figure_title, time_flag):
+        if time_flag:
+            sorted_D =  sorted(D.items(), key = operator.itemgetter(0))
+        else:
+            sorted_D = sorted(D.items(), key = operator.itemgetter(1))
         values = [x[1] for x in sorted_D]
         keys = [x[0] for x in sorted_D]
         plt.bar(range(len(sorted_D)), values, align='center',alpha=0.4, color = 'red')
@@ -153,20 +182,24 @@ class Fraud:
     @staticmethod
     def get_plots():
         # barplot with number of settled, chargebacks and refused transactions
-        trans_obj = Fraud()
+        #trans_obj = Fraud()
         trans_obj.plot_data_balance()
+
         # get transactions per country (dictionary)
         trans_per_country = trans_obj.total_per_country()
         # print("Number of countries in the dataset: %d" % len(trans_per_country))
 
         # plot normalized fraud per countries
         # get fraud transactions per country (dictionary)
+
+        #create chargeback object
         chargebacks_obj = Fraud()
         chargebacks_obj.df = chargebacks_obj.filter_records("Chargeback")
+
         fraud_per_country = chargebacks_obj.total_per_country()
         print("Number of countries with frauds in the dataset: %d" % len(fraud_per_country))
         normalized_fpc = Fraud.get_percentage_of_frauds(trans_per_country, fraud_per_country)
-        Fraud.plot_dictionary_sorted(normalized_fpc, "Normalized number of Frauds per country")
+        Fraud.plot_dictionary_sorted(normalized_fpc, "Normalized number of Frauds per country", False)
 
         # plot normalized cardType
         # get transactions per card type (dictionary)
@@ -174,7 +207,32 @@ class Fraud:
         # get fraud transactions per card type (dictionary)
         fraud_per_cardtype = chargebacks_obj.total_per_cardtype()
         normalized_cardtype = Fraud.get_percentage_of_frauds(trans_per_card_type, fraud_per_cardtype)
-        Fraud.plot_dictionary_sorted(normalized_cardtype, "Normalized  number of frauds per cardtype")
+        Fraud.plot_dictionary_sorted(normalized_cardtype, "Normalized  number of frauds per cardtype", False)
+
+        # plot normalized day month
+        # get transactions per day (dictionary)
+        trans_per_day_week = trans_obj.total_per_day_week()
+        # get fraud transactions per card type (dictionary)
+        fraud_per_day_week = chargebacks_obj.total_per_day_week()
+        normalized_day_week = Fraud.get_percentage_of_frauds(trans_per_day_week, fraud_per_day_week)
+        Fraud.plot_dictionary_sorted(normalized_day_week, "Normalized  number of frauds per day-week", True)
+
+        # plot normalized day month
+        # get transactions per month (dictionary)
+        trans_per_day_month = trans_obj.total_per_day_month()
+        # get fraud transactions per card type (dictionary)
+        fraud_per_day_month = chargebacks_obj.total_per_day_month()
+        normalized_day_month = Fraud.get_percentage_of_frauds(trans_per_day_month, fraud_per_day_month)
+        Fraud.plot_dictionary_sorted(normalized_day_month, "Normalized  number of frauds per day-month", True)
+
+        # plot normalized hour
+        # get transactions per hour (dictionary)
+        trans_per_hour = trans_obj.total_per_hour()
+        # get fraud transactions per card type (dictionary)
+        fraud_per_hour = chargebacks_obj.total_per_hour()
+        normalized_hour = Fraud.get_percentage_of_frauds(trans_per_hour, fraud_per_hour)
+        Fraud.plot_dictionary_sorted(normalized_hour, "Normalized  number of frauds per hour", True)
+
 
         # boxplots for settled and fraud amounts
         # get settled transactions
@@ -395,18 +453,20 @@ class Fraud:
 
     # LET THE MAGIC BEGIN
     def run(self):
-        hot_encoding = True
+
+        # remove REFUSED transactions
+        self.df = self.df[self.df.simple_journal != "Refused"]
+
+        hot_encoding = False
         list_with_categorical_columns = ["txvariantcode", "shopperinteraction", "issuercountrycode", "currencycode",
                                          "shoppercountrycode", "accountcode", "card_id", "ip_id", "mail_id"]
 
-        filtered_df = self.get_selected_features(selected_features)
-        filtered_df = filtered_df.dropna(axis=0, how='any')
-
         if hot_encoding:
+            filtered_df = self.get_selected_features(selected_features)
+            filtered_df = filtered_df.dropna(axis=0, how='any')
             print("Hot encoding")
             Fraud.hot_encoder(filtered_df, list_with_categorical_columns)
             filtered_df = filtered_df.dropna(axis=0, how='any')
-
             features_without_labels = list(filtered_df)
             features_without_labels.remove(label)
             resulting_feature_vector, labels_list = Fraud.get_records_and_labels(filtered_df, features_without_labels)
@@ -416,15 +476,17 @@ class Fraud:
 
         else:
             print("Creating dummy variables.")
+            filtered_df = self.get_selected_features(selected_dummy_features)
+            filtered_df = filtered_df.dropna(axis=0, how='any')
             filtered_df = pd.get_dummies(filtered_df,
-                                   columns=["txvariantcode", "shopperinteraction"])
+                                   columns=["txvariantcode", "shoppercountrycode", "shopperinteraction","issuercountrycode", "currencycode", "accountcode"])
             #, "issuercountrycode"
             print("Reducing dimensionality.")
             features_without_labels = list(filtered_df)
             features_without_labels.remove(label)
             features_list, labels_list = Fraud.get_records_and_labels(filtered_df, features_without_labels)
-            resulting_feature_vector = Fraud.reduce_dimensionality(features_list, labels_list, "pca")
-            resulting_feature_vector = Fraud.reduce_dimensionality(resulting_feature_vector, labels_list, "lda")
+            resulting_feature_vector = Fraud.reduce_dimensionality(features_list, labels_list, "lda")
+            #resulting_feature_vector = features_list
             print("\tFinished!!")
 
 
@@ -432,13 +494,16 @@ class Fraud:
         smote = False
 
         print("Build KNN classifier")
-        Fraud.evaluate(resulting_feature_vector, labels_list, "knn", {"k":3}, use_smote=smote)
-
+        #Fraud.evaluate(resulting_feature_vector, labels_list, "knn", {"k":4}, use_smote=smote)
         #Fraud.evaluate_knn(resulting_feature_vector, labels_list, smote)
 
         print("Build Random Forest classifier")
-        #Fraud.evaluate(resulting_feature_vector, labels_list, "rf", {"n":100}, use_smote=smote)
+        #for n in range(10,100,10):
+        #    Fraud.evaluate(resulting_feature_vector, labels_list, "rf", {"n":n}, use_smote=smote)
         #Fraud.evaluate_rf(pca_features, labels_list)
+
+        print("Build Decision Tree classifier")
+        Fraud.evaluate(resulting_feature_vector, labels_list, "dt", {}, use_smote=False)
 
         print("Build Naive Bayes classifier")
         #Fraud.evaluate(resulting_feature_vector, labels_list, "nb", {}, use_smote=smote)
@@ -447,118 +512,30 @@ class Fraud:
         #Fraud.evaluate(resulting_feature_vector, labels_list, "lda", {}, use_smote=smote)
 
         print("Build gradient boost classifier")
-        #params = {'n_estimators': 200, 'max_depth': 3, 'min_samples_split': 2,
-         #          'learning_rate': 0.01, 'loss': 'exponential'}
-        #Fraud.evaluate(resulting_feature_vector, labels_list, "gb", params, use_smote=False)
-
+        # for estimators in[50, 100, 150, 200]:
+        #     for learning in [0.04, 0.08, 0.12, 0.2]:
+        #         for loss in ["deviance", "exponential"]:
+        estimators = 100
+        loss = "deviance"
+        learning = 0.08
+        params = {'n_estimators': estimators, 'max_depth': 3, 'min_samples_split': 2,
+                    'learning_rate': learning, 'loss': loss}
+        #Fraud.evaluate(resulting_feature_vector, labels_list, "gb", params, use_smote=True)
+        #
         print("Build majority voting classifier")
-        # mv_params = {"knn":KNeighborsClassifier(n_neighbors=4), "nb": GaussianNB(), "lda": LinearDiscriminantAnalysis(),
-        #              "rf": RandomForestClassifier(n_jobs=5), "gb": GradientBoostingClassifier(**params),
-        #              "dt": tree.DecisionTreeClassifier()}
-        # Fraud.evaluate(resulting_feature_vector, labels_list, "mv", mv_params, use_smote=False)
-        # print("\tFinished!!")
+        #mv_params = {"knn":KNeighborsClassifier(n_neighbors=4), "nb": GaussianNB(), "lda": LinearDiscriminantAnalysis(),
+        #                "rf": RandomForestClassifier(n_jobs=5), "gb": GradientBoostingClassifier(**params),
+        #                "dt": tree.DecisionTreeClassifier()}
+        #Fraud.evaluate(resulting_feature_vector, labels_list, "mv", mv_params, use_smote=False)
+        print("Finished!!")
 
-
-#### REMEMBER ############################################
-# issuercountrycode: needs different columns per country {1,0}
-# txvariantcode: same as above
-# shopperinteraction: {Ecom, ContAuth, POS} needs different columns
-# cardverificationcodesupplied: {True, False} which for python => {1,0} so it's ok
-# amount: numerical, can be used as it is
-# cvcresponsecode: binary, can be used as it is
-#### STOP REMEMBERING ############################################
 
 # Initialization of dataframe object (transactions)
 trans_obj = Fraud()
 
-# Selection of specified features (returns dataframe)
-#trans_sel_features = Fraud()
-#trans_sel_features.df = trans_obj.get_selected_features(selected_features)
+# RUN CLASSIFIERS
+trans_obj.run()
 
-#print trans_sel_features.df.shape
+# RUN VISUALIZATIONS
+Fraud.get_plots()
 
-# convertion of features for SMOTE
-#trans_for_SMT = Fraud()
-#trans_for_SMT.df = pd.get_dummies(trans_sel_features.df, columns=["txvariantcode","issuercountrycode", "shopperinteraction"])
-
-
-# sort dataset by date
-#trans_for_SMT.df['creationdate'] =pd.to_datetime(trans_for_SMT.df.creationdate)
-#trans_for_SMT.df.sort_values(by="creationdate")
-
-# remove rows with missed values
-#trans_for_SMT.df = trans_for_SMT.df.dropna(axis=0, how='any')
-
-# split dataset to train and test set
-# IMPORTANT: smote only to training set !!
-# Take into account date ordering
-
-
-# features_without_labels = list(trans_for_SMT.df)
-# features_without_labels.remove(label)
-# features_list, labels_list = trans_for_SMT.get_records_and_labels(features_without_labels)
-
-#X_train, X_test, y_train, y_test = train_test_split(features_list, labels_list, test_size=0.55,random_state=42)
-
-#train_set, test_set = trans_for_SMT.split_to_train_test(0.4)
-
-# convert train_set and test_set to Fraud object
-#train_obj = Fraud()
-#train_obj.df = train_set
-
-#test_obj = Fraud()
-#test_obj.df = test_set
-
-# PCA
-#print X_train
-#pca = decomposition.PCA(n_components=15)
-#pca_features = pca.fit_transform(features_list)
-#X_test = pca.transform(X_test)
-
-
-# SMOTE
-# create training features list
-#training_features = list(train_set)
-#print training_features
-# training features => remove label, and creation time
-#training_features.remove(label)
-
-# sampling
-#print X_train
-#print y_train
-
-#features_train, labels_train = Fraud.resample_smote2(X_train, y_train)
-
-# KNN classifier
-#neigh = KNeighborsClassifier(n_neighbors=4)
-#neigh.fit(X_train, y_train)
-#print neigh.score(X_test, y_test)
-#y_predict = Fraud.evaluate_knn(pca_features, labels_list, 3)
-    #neigh.predict(X_test)
-
-
-#Fraud.knn_classifier(features_train, labels_train, features_test, labels_test)
-
-
-
-#filter the dataframe per simple_journal category
-# chargebacks_obj = Fraud()
-# chargebacks_obj.df = chargebacks_obj.filter_records("Chargeback")
-# settled_obj = Fraud()
-# settled_obj.df = settled_obj.filter_records("Settled")
-#refused_obj = Fraud()
-#refused_obj.df = refused_obj.filter_records("Refused")
-
-
-#get plots
-#Fraud.get_plots()
-
-
-# NOTES
-# simple_journal = {Settled, Chargeback} We have removed "Refused"
-
-# print the different values of 'simple_journal'
-#print(trans_obj.df["simple_journal"].unique())
-
-#df.to_pickle("augmented_dataframe")
-#print(df.shape)
