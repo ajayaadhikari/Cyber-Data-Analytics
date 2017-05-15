@@ -23,7 +23,7 @@ columns = ["txid", "bookingdate", "issuercountrycode", "txvariantcode", "card_is
            "ip_id", "card_id"]
 
 selected_features = ["issuercountrycode", "txvariantcode", "amount", "shopperinteraction", "cardverificationcodesupplied",
-                     "cvcresponsecode", "simple_journal"]
+                     "cvcresponsecode", "simple_journal", "creationdate_hour", "creationdate_dayofweek"]
 label = "simple_journal"
 features_for_convertion = ["issuercountrycode", "txvariantcode", "shopperinteraction"]
 
@@ -46,9 +46,14 @@ class Fraud:
         self.df = self.df[self.df.simple_journal != "Refused"]
 
         # Change data types of some columns
-        self.df["bookingdate"].apply(self.string_to_timestamp)
+        #self.df["bookingdate"].apply(self.string_to_timestamp)
         self.df["card_issuer_identifier"].apply(float)
         self.df["amount"].apply(lambda x: float(x)/100)
+        self.df['creationdate'] = pd.to_datetime(self.df.creationdate)
+        self.df['creationdate_hour'] = self.df['creationdate'].map(lambda x: x.hour)
+        self.df['creationdate_dayofweek'] = self.df['creationdate'].map(lambda x: x.weekday())
+        self.df['creationdate_dayofmonth'] = self.df['creationdate'].map(lambda x: x.day)
+        self.df['creationdate_month'] = self.df['creationdate'].map(lambda x: x.month)
         print("\tFinished!!")
         #self.df["simple_journal"].apply(lambda y: 0 if y == "Settled" else 1)
 
@@ -306,7 +311,7 @@ class Fraud:
    # Run classifiers with different parameters
     @staticmethod
     def evaluate_knn(feature_vector, labels, smote):
-        for i in range(1, 6):
+        for i in range(4, 6):
             Fraud.evaluate(feature_vector, labels, "knn", {"k": i}, use_smote=smote)
     @staticmethod
     def evaluate_rf(feature_vector, labels, smote):
