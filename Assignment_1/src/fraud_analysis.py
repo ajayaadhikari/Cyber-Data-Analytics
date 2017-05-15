@@ -5,7 +5,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-
+from sklearn.metrics import accuracy_score, average_precision_score, f1_score, recall_score, roc_auc_score
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn import decomposition
 import pandas as pd
@@ -218,13 +218,28 @@ class Fraud:
         return classifiers[name_classifier](features_train, labels_train, variables)
 
     @staticmethod
+    def write_to_file(classifier_name, variables, results, k_fold):
+        result = "Variables: %s, k_fold: %s\nTP: %s\nFP: %s\nFN: %s\nTN: %s\nAccuracy: %s\nPrecision: %s\nRecall: %s\nAUC: %s\nF1: %s\n\n" % (
+            str(variables), k_fold, results["TP"], results["FP"], results["FN"], results["TN"],
+            results["accuracy"],results["precision"],results["recall"], results["auc"], results["f1"]
+        )
+        with open(os.path.join("..", "results", classifier_name), "a") as myfile:
+            myfile.write(result)
+        myfile.close()
+
+    @staticmethod
     def evaluate(feature_vector, labels, classifier_name, variables, use_smote):
-        n_splits = 10
+        n_splits = 2
+
         unique, counts = np.unique(labels, return_counts=True)
         print("Total label distribution", dict(zip(unique, counts)))
+
+        convert_zero_one = lambda x: map(lambda y: 0 if y == "Settled" else 1, x)
+        labels = np.array(convert_zero_one(labels))
         k_fold = StratifiedKFold(n_splits=n_splits)
         real_labels = []
         predicted_labels = []
+        probability_labels = []
         print("Applying %s-fold crossvalidation with %s predictor, variables %s and smote=%s" % (n_splits, classifier_name,str(variables), str(use_smote)))
         for train, test in k_fold.split(feature_vector,labels):
             if use_smote:
@@ -243,31 +258,41 @@ class Fraud:
             # Save the labels
             real_labels.extend(labels_test)
             predicted_labels.extend(classifier.predict(features_test))
+            probability_labels.extend(classifier.predict_proba(features_test))
+
         print("\tFinished")
         print("Retrieving results.")
-        # convert labels to {0,1} , 0: Settled, 1: Chargeback
-        convert_zero_one = lambda x: map(lambda y: 0 if y == "Settled" else 1, x)
-        y_predict = convert_zero_one(predicted_labels)
-        y_test = convert_zero_one(real_labels)
-
         TP = 0
         FP = 0
         FN = 0
         TN = 0
-        for i in xrange(len(y_predict)):
-            if y_test[i] == 1 and y_predict[i] == 1:
+        accuracy = accuracy_score(real_labels, predicted_labels)
+        f1 = f1_score(real_labels, predicted_labels)
+        precision = average_precision_score(real_labels, predicted_labels)
+        recall = recall_score(real_labels, predicted_labels)
+        get_probability_labels = lambda container: map(lambda index: container[index][predicted_labels[index]], range(len(container)))
+        auc = roc_auc_score(real_labels, get_probability_labels(probability_labels))
+
+        for i in xrange(len(predicted_labels)):
+            if real_labels[i] == 1 and predicted_labels[i] == 1:
                 TP += 1
-            if y_test[i] == 0 and y_predict[i] == 1:
+            if real_labels[i] == 0 and predicted_labels[i] == 1:
                 FP += 1
-            if y_test[i] == 1 and y_predict[i] == 0:
+            if real_labels[i] == 1 and predicted_labels[i] == 0:
                 FN += 1
-            if y_test[i] == 0 and y_predict[i] == 0:
+            if real_labels[i] == 0 and predicted_labels[i] == 0:
                 TN += 1
-        print 'TP: ' + str(TP)
-        print 'FP: ' + str(FP)
-        print 'FN: ' + str(FN)
-        print 'TN: ' + str(TN)
-        print"\tFinished!"
+
+        resulting_metrics = {"TP": TP, "FP": FP, "FN": FN, "TN": TN, "accuracy": accuracy, "f1": f1,
+                             "precision":precision, "recall": recall, "auc": auc}
+        print("Result:%s" % str(resulting_metrics))
+        print("\tFinished!")
+
+        print("Writing to file")
+        Fraud.write_to_file(classifier_name, variables, resulting_metrics,n_splits)
+        print("\tFinished!")
+
+        return resulting_metrics
 
 
    # Run classifiers with different parameters
