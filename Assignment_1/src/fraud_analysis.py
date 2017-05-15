@@ -313,6 +313,21 @@ class Fraud:
         for i in range(10, 20, 2):
             Fraud.evaluate(feature_vector, labels, "rf", {"n":i}, use_smote=smote)
 
+    @staticmethod
+    def evaluate_gb(feature_vector, labels, smote):
+        pass
+
+    @staticmethod
+    def reduce_dimensionality(feature_vector, labels, method):
+        print("\tUsing %s" % method)
+        if method == "pca":
+            pca = decomposition.PCA(n_components=30)
+            resulting_features = pca.fit_transform(feature_vector)
+        elif method == "lda":
+            lda = LinearDiscriminantAnalysis(n_components=20)
+            resulting_features = lda.fit_transform(feature_vector, labels)
+        return resulting_features
+
     # LET THE MAGIC BEGIN
     def run(self):
         print("Creating dummy variables.")
@@ -322,21 +337,21 @@ class Fraud:
         dummies_df = dummies_df.dropna(axis=0, how='any')
         print("\tFinished!!")
 
-        print("Applying PCA.")
+        print("Reducing dimensionality.")
         features_without_labels = list(dummies_df)
         features_without_labels.remove(label)
-        features_list, labels_list = self.get_records_and_labels(dummies_df, features_without_labels)
-        pca = decomposition.PCA(n_components=30)
-        pca_features = pca.fit_transform(features_list)
-
+        features_list, labels_list = Fraud.get_records_and_labels(dummies_df, features_without_labels)
+        resulting_feature_vector = Fraud.reduce_dimensionality(features_list, labels_list, "pca")
         print("\tFinished!!")
+
+
 
         print("Building classifier and apply (or not) SMOTE")
         smote = False
 
         print("Build KNN classifier")
         #Fraud.evaluate(pca_features, labels_list, "knn", {"k":4}, use_smote=smote)
-        Fraud.evaluate_knn(pca_features, labels_list, smote)
+        Fraud.evaluate_knn(resulting_feature_vector, labels_list, smote)
 
         print("Build Random Forest classifier")
         #Fraud.evaluate(pca_features, labels_list, "rf", {"n":15}, use_smote=smote)
