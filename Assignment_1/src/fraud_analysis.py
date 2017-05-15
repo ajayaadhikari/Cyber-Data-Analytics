@@ -188,9 +188,9 @@ class Fraud:
         return classifiers[name_classifier](features_train, labels_train, variables)
 
     @staticmethod
-    def write_to_file(classifier_name, variables, results):
-        result = "Variables: %s\nTP: %s\nFP: %s\nFN: %s\nTN: %s\nAccuracy: %s\nPrecision: %s\nRecall: %s\nAUC: %s\nF1: %s\n\n" % (
-            str(variables), results["TP"], results["FP"], results["FN"], results["TN"],
+    def write_to_file(classifier_name, variables, results, k_fold):
+        result = "Variables: %s, k_fold: %s\nTP: %s\nFP: %s\nFN: %s\nTN: %s\nAccuracy: %s\nPrecision: %s\nRecall: %s\nAUC: %s\nF1: %s\n\n" % (
+            str(variables), k_fold, results["TP"], results["FP"], results["FN"], results["TN"],
             results["accuracy"],results["precision"],results["recall"], results["auc"], results["f1"]
         )
         with open(os.path.join("..", "results", classifier_name), "a") as myfile:
@@ -259,7 +259,7 @@ class Fraud:
         print("\tFinished!")
 
         print("Writing to file")
-        Fraud.write_to_file(classifier_name, variables, resulting_metrics)
+        Fraud.write_to_file(classifier_name, variables, resulting_metrics,n_splits)
         print("\tFinished!")
 
         return resulting_metrics
