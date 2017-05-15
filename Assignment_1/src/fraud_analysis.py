@@ -1,8 +1,11 @@
 from __future__ import division
 from imblearn.over_sampling import SMOTE
 from sklearn.model_selection import StratifiedKFold
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.metrics import accuracy_score, average_precision_score, f1_score, recall_score, roc_auc_score
-
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn import decomposition
 import pandas as pd
@@ -49,12 +52,6 @@ class Fraud:
         print("\tFinished!!")
         #self.df["simple_journal"].apply(lambda y: 0 if y == "Settled" else 1)
 
-    # The minority class gets oversampled to balance with the majority class
-    # Output format: X_resampled, y_resampled
-    def resample_smote(self, columns_training):
-        X, y = self.get_records_and_labels(columns_training)
-        sm = SMOTE()
-        return sm.fit_sample(X, y)
 
     @staticmethod
     def get_records_and_labels(df, columns):
@@ -107,7 +104,7 @@ class Fraud:
     @staticmethod
     # The minority class gets oversampled to balance with the majority class
     # Output format: X_resampled, y_resampled
-    def resample_smote2(X, y):
+    def resample_smote(X, y):
         sm = SMOTE()
         return sm.fit_sample(X, y)
 
@@ -175,6 +172,10 @@ class Fraud:
         ax2.set_title("Chargeback")
         plt.show()
 
+    ##############
+    # CLASSIFIERS#
+    ##############
+
     @staticmethod
     def knn(features_train, labels_train, variables):
         k = variables["k"]
@@ -183,8 +184,37 @@ class Fraud:
         return knn_classifier
 
     @staticmethod
+    def lda(features_train, labels_train, variables):
+        lda_classifier = LinearDiscriminantAnalysis()
+        lda_classifier.fit(features_train, labels_train)
+        return lda_classifier
+
+    @staticmethod
+    def random_forest(features_train, labels_train, variables):
+        n = variables["n"]
+        rf_classifier = RandomForestClassifier(n_jobs=n)
+        rf_classifier.fit(features_train, labels_train)
+        return rf_classifier
+
+    @staticmethod
+    def naive_bayes(features_train, labels_train, variables):
+        nb = GaussianNB()
+        nb.fit(features_train, labels_train)
+        return nb
+
+    @staticmethod
+    def gradient_boost(features_train, labels_train, variables):
+        params = {'n_estimators': variables["n_estimators"], 'max_depth': variables["max_depth"],
+                  'min_samples_split': variables["min_samples_split"],
+                  'learning_rate': variables["learning_rate"], 'loss': variables["loss"]}
+        gb_classifier = GradientBoostingClassifier(**params)
+        gb_classifier.fit(features_train, labels_train)
+        return gb_classifier
+
+    @staticmethod
     def get_classifier(name_classifier, features_train, labels_train, variables):
-        classifiers = {"knn": Fraud.knn}
+        classifiers = {"knn": Fraud.knn, "rf": Fraud.random_forest, "gb": Fraud.gradient_boost,
+                       "nb": Fraud.naive_bayes, "lda": Fraud.lda}
         return classifiers[name_classifier](features_train, labels_train, variables)
 
     @staticmethod
@@ -213,7 +243,7 @@ class Fraud:
         print("Applying %s-fold crossvalidation with %s predictor, variables %s and smote=%s" % (n_splits, classifier_name,str(variables), str(use_smote)))
         for train, test in k_fold.split(feature_vector,labels):
             if use_smote:
-                features_train, labels_train = Fraud.resample_smote2(feature_vector[train], labels[train])
+                features_train, labels_train = Fraud.resample_smote(feature_vector[train], labels[train])
             else:
                 features_train, labels_train = feature_vector[train], labels[train]
             features_test, labels_test = feature_vector[test], labels[test]
@@ -264,10 +294,23 @@ class Fraud:
 
         return resulting_metrics
 
+
+   # Run classifiers with different parameters
+    @staticmethod
+    def evaluate_knn(feature_vector, labels, smote):
+        for i in range(1, 6):
+            Fraud.evaluate(feature_vector, labels, "knn", {"k": i}, use_smote=smote)
+    @staticmethod
+    def evaluate_rf(feature_vector, labels, smote):
+        for i in range(10, 20, 2):
+            Fraud.evaluate(feature_vector, labels, "rf", {"n":i}, use_smote=smote)
+
+    # LET THE MAGIC BEGIN
     def run(self):
         print("Creating dummy variables.")
         filtered_df = self.get_selected_features(selected_features)
-        dummies_df = pd.get_dummies(filtered_df, columns=["txvariantcode", "issuercountrycode", "shopperinteraction"])
+        dummies_df = pd.get_dummies(filtered_df,
+                                   columns=["txvariantcode", "issuercountrycode", "shopperinteraction"])
         dummies_df = dummies_df.dropna(axis=0, how='any')
         print("\tFinished!!")
 
@@ -277,14 +320,34 @@ class Fraud:
         features_list, labels_list = self.get_records_and_labels(dummies_df, features_without_labels)
         pca = decomposition.PCA(n_components=30)
         pca_features = pca.fit_transform(features_list)
+
         print("\tFinished!!")
 
-        print("Building classifier and apply SMOTE")
-        Fraud.evaluate(pca_features, labels_list, "knn", {"k":3}, use_smote=True)
+        print("Building classifier and apply (or not) SMOTE")
+        smote = False
+
+        print("Build KNN classifier")
+        #Fraud.evaluate(pca_features, labels_list, "knn", {"k":4}, use_smote=smote)
+        Fraud.evaluate_knn(pca_features, labels_list, smote)
+
+        print("Build Random Forest classifier")
+        #Fraud.evaluate(pca_features, labels_list, "rf", {"n":15}, use_smote=smote)
+        #Fraud.evaluate_rf(pca_features, labels_list)
+
+        print("Build Naive Bayes classifier")
+        #Fraud.evaluate(pca_features, labels_list, "nb", {}, use_smote=smote)
+
+        print("Build lda classifier")
+        #Fraud.evaluate(pca_features, labels_list, "lda", {}, use_smote=smote)
+
+        print("Build gradient boost classifier")
+        params = {'n_estimators': 100, 'max_depth': 3, 'min_samples_split': 2,
+                  'learning_rate': 0.1, 'loss': 'exponential'}
+        #Fraud.evaluate(pca_features, labels_list, "gb", params, use_smote=False)
         print("\tFinished!!")
 
 
-# LET THE MAGIC BEGIN
+
 
 #### REMEMBER ############################################
 # issuercountrycode: needs different columns per country {1,0}
