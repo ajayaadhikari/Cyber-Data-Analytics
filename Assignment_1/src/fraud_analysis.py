@@ -4,7 +4,7 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.ensemble import RandomForestClassifier, VotingClassifier, GradientBoostingClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-from sklearn.metrics import accuracy_score, average_precision_score, f1_score, recall_score, roc_auc_score
+from sklearn.metrics import accuracy_score, average_precision_score, f1_score, recall_score, roc_auc_score, roc_curve, auc
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn import decomposition, tree, preprocessing
 import pandas as pd
@@ -22,9 +22,9 @@ columns = ["txid", "bookingdate", "issuercountrycode", "txvariantcode", "card_is
            "ip_id", "card_id"]
 
 selected_features = ["txid", "issuercountrycode", "txvariantcode", "card_issuer_identifier",
-           "amount", "currencycode", "shoppercountrycode", "shopperinteraction", "simple_journal",
-           "cardverificationcodesupplied", "cvcresponsecode", "accountcode", "mail_id",
-           "ip_id", "card_id", "creationdate_hour", "creationdate_dayofweek",'creationdate_month','creationdate_dayofmonth']
+                    "amount", "currencycode", "shoppercountrycode", "shopperinteraction", "simple_journal",
+                    "cardverificationcodesupplied", "cvcresponsecode", "accountcode", "creationdate_hour",
+                     "creationdate_dayofweek",'creationdate_month','creationdate_dayofmonth',  "card_id", "ip_id", "mail_id"]
 
     #[ "txvariantcode", "amount", "shopperinteraction", "cardverificationcodesupplied",
     #                 "cvcresponsecode", "simple_journal", "creationdate_hour", "creationdate_dayofweek",
@@ -265,6 +265,21 @@ class Fraud:
             myfile.write(result)
         myfile.close()
 
+    @staticmethod
+    def plot_roc(classifier_name, predicted_labels, probability_labels):
+        false_positive_rate, true_positive_rate, _ = roc_curve(predicted_labels, probability_labels, pos_label=1)
+        plt.figure()
+        lw = 2
+        plt.plot(false_positive_rate, true_positive_rate, color='darkorange',
+                 lw=lw, label='ROC curve (area = %0.2f)' % auc(false_positive_rate, true_positive_rate))
+        plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+        plt.xlim([0.0, 1.0])
+        plt.ylim([0.0, 1.05])
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate')
+        plt.title('Receiver operating characteristic for %s' % classifier_name)
+        plt.legend(loc="lower right")
+        plt.show()
 
     @staticmethod
     def get_evaluation_metrics(real_labels, predicted_labels, probability_labels):
@@ -277,8 +292,7 @@ class Fraud:
         f1 = f1_score(real_labels, predicted_labels)
         precision = average_precision_score(real_labels, predicted_labels)
         recall = recall_score(real_labels, predicted_labels)
-        get_probability_labels = lambda container: map(lambda index: container[index][predicted_labels[index]], range(len(container)))
-        auc = roc_auc_score(real_labels, get_probability_labels(probability_labels))
+        auc = roc_auc_score(real_labels, probability_labels)
 
         for i in xrange(len(predicted_labels)):
             if real_labels[i] == 1 and predicted_labels[i] == 1:
@@ -298,7 +312,7 @@ class Fraud:
 
     @staticmethod
     def evaluate(feature_vector, labels, classifier_name, variables, use_smote):
-        n_splits = 10
+        n_splits = 2
 
         # Print the distribution of the lables
         unique, counts = np.unique(labels, return_counts=True)
@@ -333,7 +347,13 @@ class Fraud:
         print("\tFinished")
 
         # Get the evaluation metrics
+        get_probability_labels = lambda container: map(lambda index: container[index][predicted_labels[index]], range(len(container)))
+        probability_labels = get_probability_labels(probability_labels)
         resulting_metrics = Fraud.get_evaluation_metrics(real_labels, predicted_labels, probability_labels)
+
+        print("Plot the ROC curve")
+        Fraud.plot_roc(classifier_name, predicted_labels, probability_labels)
+        print("\tFinished")
 
         print("Writing to file")
         Fraud.write_to_file(classifier_name, variables, resulting_metrics, n_splits, use_smote)
@@ -360,10 +380,10 @@ class Fraud:
     def reduce_dimensionality(feature_vector, labels, method):
         print("\tUsing %s" % method)
         if method == "pca":
-            pca = decomposition.PCA(n_components=30)
+            pca = decomposition.PCA(n_components=100)
             resulting_features = pca.fit_transform(feature_vector)
         elif method == "lda":
-            lda = LinearDiscriminantAnalysis(n_components=20)
+            lda = LinearDiscriminantAnalysis(n_components=50)
             resulting_features = lda.fit_transform(feature_vector, labels)
         return resulting_features
 
@@ -403,7 +423,8 @@ class Fraud:
             features_without_labels = list(filtered_df)
             features_without_labels.remove(label)
             features_list, labels_list = Fraud.get_records_and_labels(filtered_df, features_without_labels)
-            resulting_feature_vector = Fraud.reduce_dimensionality(features_list, labels_list, "lda")
+            resulting_feature_vector = Fraud.reduce_dimensionality(features_list, labels_list, "pca")
+            resulting_feature_vector = Fraud.reduce_dimensionality(resulting_feature_vector, labels_list, "lda")
             print("\tFinished!!")
 
 
@@ -411,24 +432,24 @@ class Fraud:
         smote = False
 
         print("Build KNN classifier")
-        Fraud.evaluate(resulting_feature_vector, labels_list, "knn", {"k":4}, use_smote=smote)
+        Fraud.evaluate(resulting_feature_vector, labels_list, "knn", {"k":3}, use_smote=smote)
 
         #Fraud.evaluate_knn(resulting_feature_vector, labels_list, smote)
 
         print("Build Random Forest classifier")
-        Fraud.evaluate(resulting_feature_vector, labels_list, "rf", {"n":100}, use_smote=smote)
+        #Fraud.evaluate(resulting_feature_vector, labels_list, "rf", {"n":100}, use_smote=smote)
         #Fraud.evaluate_rf(pca_features, labels_list)
 
         print("Build Naive Bayes classifier")
-        Fraud.evaluate(resulting_feature_vector, labels_list, "nb", {}, use_smote=smote)
+        #Fraud.evaluate(resulting_feature_vector, labels_list, "nb", {}, use_smote=smote)
 
         print("Build lda classifier")
-        Fraud.evaluate(resulting_feature_vector, labels_list, "lda", {}, use_smote=smote)
+        #Fraud.evaluate(resulting_feature_vector, labels_list, "lda", {}, use_smote=smote)
 
         print("Build gradient boost classifier")
-        params = {'n_estimators': 200, 'max_depth': 3, 'min_samples_split': 2,
-                   'learning_rate': 0.01, 'loss': 'exponential'}
-        Fraud.evaluate(resulting_feature_vector, labels_list, "gb", params, use_smote=False)
+        #params = {'n_estimators': 200, 'max_depth': 3, 'min_samples_split': 2,
+         #          'learning_rate': 0.01, 'loss': 'exponential'}
+        #Fraud.evaluate(resulting_feature_vector, labels_list, "gb", params, use_smote=False)
 
         print("Build majority voting classifier")
         # mv_params = {"knn":KNeighborsClassifier(n_neighbors=4), "nb": GaussianNB(), "lda": LinearDiscriminantAnalysis(),
