@@ -375,18 +375,16 @@ class Fraud:
 
     # LET THE MAGIC BEGIN
     def run(self):
-        hot_encoding = True
+        hot_encoding = False
         list_with_categorical_columns = ["txvariantcode", "shopperinteraction", "issuercountrycode", "currencycode",
                                          "shoppercountrycode", "accountcode", "card_id", "ip_id", "mail_id"]
 
-        filtered_df = self.get_selected_features(selected_features)
-        filtered_df = filtered_df.dropna(axis=0, how='any')
-
         if hot_encoding:
+            filtered_df = self.get_selected_features(selected_features)
+            filtered_df = filtered_df.dropna(axis=0, how='any')
             print("Hot encoding")
             Fraud.hot_encoder(filtered_df, list_with_categorical_columns)
             filtered_df = filtered_df.dropna(axis=0, how='any')
-
             features_without_labels = list(filtered_df)
             features_without_labels.remove(label)
             resulting_feature_vector, labels_list = Fraud.get_records_and_labels(filtered_df, features_without_labels)
@@ -395,9 +393,15 @@ class Fraud:
             print len(resulting_feature_vector[3])
 
         else:
+            selected_features = [ "issuercountrycode", "txvariantcode", "card_issuer_identifier",
+                                 "amount", "currencycode", "shoppercountrycode", "shopperinteraction", "simple_journal",
+                                 "cardverificationcodesupplied", "cvcresponsecode", "accountcode",
+                                "creationdate_hour", "creationdate_dayofweek",'creationdate_month', 'creationdate_dayofmonth']
             print("Creating dummy variables.")
+            filtered_df = self.get_selected_features(selected_features)
+            filtered_df = filtered_df.dropna(axis=0, how='any')
             filtered_df = pd.get_dummies(filtered_df,
-                                   columns=["txvariantcode", "shopperinteraction"])
+                                   columns=["txvariantcode", "shoppercountrycode", "shopperinteraction","issuercountrycode", "currencycode", "accountcode"])
             #, "issuercountrycode"
             print("Reducing dimensionality.")
             features_without_labels = list(filtered_df)
@@ -416,7 +420,9 @@ class Fraud:
         #Fraud.evaluate_knn(resulting_feature_vector, labels_list, smote)
 
         print("Build Random Forest classifier")
-        Fraud.evaluate(resulting_feature_vector, labels_list, "rf", {"n":100}, use_smote=smote)
+        #for n in range(10,100,10):
+        #    Fraud.evaluate(resulting_feature_vector, labels_list, "rf", {"n":n}, use_smote=smote)
+
         #Fraud.evaluate_rf(pca_features, labels_list)
 
         print("Build Naive Bayes classifier")
@@ -426,16 +432,16 @@ class Fraud:
         Fraud.evaluate(resulting_feature_vector, labels_list, "lda", {}, use_smote=smote)
 
         print("Build gradient boost classifier")
-        params = {'n_estimators': 200, 'max_depth': 3, 'min_samples_split': 2,
-                   'learning_rate': 0.01, 'loss': 'exponential'}
+        params = {'n_estimators': 100, 'max_depth': 3, 'min_samples_split': 2,
+                    'learning_rate': 0.1, 'loss': 'deviance'}
         Fraud.evaluate(resulting_feature_vector, labels_list, "gb", params, use_smote=False)
-
+        #
         print("Build majority voting classifier")
         # mv_params = {"knn":KNeighborsClassifier(n_neighbors=4), "nb": GaussianNB(), "lda": LinearDiscriminantAnalysis(),
-        #              "rf": RandomForestClassifier(n_jobs=5), "gb": GradientBoostingClassifier(**params),
-        #              "dt": tree.DecisionTreeClassifier()}
+        #               "rf": RandomForestClassifier(n_jobs=5), "gb": GradientBoostingClassifier(**params),
+        #               "dt": tree.DecisionTreeClassifier()}
         # Fraud.evaluate(resulting_feature_vector, labels_list, "mv", mv_params, use_smote=False)
-        # print("\tFinished!!")
+        print("Finished!!")
 
 
 #### REMEMBER ############################################
