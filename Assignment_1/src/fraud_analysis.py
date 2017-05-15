@@ -21,8 +21,14 @@ columns = ["txid", "bookingdate", "issuercountrycode", "txvariantcode", "card_is
            "cardverificationcodesupplied", "cvcresponsecode", "creationdate", "accountcode", "mail_id",
            "ip_id", "card_id"]
 
-selected_features = [ "txvariantcode", "amount", "shopperinteraction", "cardverificationcodesupplied",
-                     "cvcresponsecode", "simple_journal", "creationdate_hour", "creationdate_dayofweek"]
+selected_features = ["txid", "issuercountrycode", "txvariantcode", "card_issuer_identifier",
+           "amount", "currencycode", "shoppercountrycode", "shopperinteraction", "simple_journal",
+           "cardverificationcodesupplied", "cvcresponsecode", "accountcode", "mail_id",
+           "ip_id", "card_id", "creationdate_hour", "creationdate_dayofweek",'creationdate_month','creationdate_dayofmonth']
+
+    #[ "txvariantcode", "amount", "shopperinteraction", "cardverificationcodesupplied",
+    #                 "cvcresponsecode", "simple_journal", "creationdate_hour", "creationdate_dayofweek",
+    #                  "issuercountrycode",'creationdate_month','creationdate_dayofmonth']
 #"issuercountrycode"
 label = "simple_journal"
 features_for_convertion = ["issuercountrycode", "txvariantcode", "shopperinteraction"]
@@ -78,6 +84,8 @@ class Fraud:
         #result.to_csv(path=path,index_label=["issuercountrycode","transaction_count"],index=True)
         return result
 
+
+
     # Output: dictionary
     def total_per_cardtype(self):
         result = self.df["txvariantcode"].value_counts().to_dict()
@@ -105,6 +113,12 @@ class Fraud:
         plt.ylabel('Number of Transactions`')
         plt.title('Balance of the Data')
         plt.show()
+
+    @staticmethod
+    def normalize_all_columns(x):
+        min_max_scaler = preprocessing.MinMaxScaler()
+        x_scaled = min_max_scaler.fit_transform(x)
+        return x_scaled
 
     @staticmethod
     # The minority class gets oversampled to balance with the majority class
@@ -354,43 +368,50 @@ class Fraud:
         return resulting_features
 
     @staticmethod
-    def hot_encoder(features_df):
+    def hot_encoder(features_df, columns):
         le = preprocessing.LabelEncoder()
-
-        pass
-
+        for col_names in columns:
+            features_df[col_names] = pd.Series(le.fit_transform(features_df[col_names].values))
 
     # LET THE MAGIC BEGIN
     def run(self):
-        print("Creating dummy variables.")
+        hot_encoding = True
+        list_with_categorical_columns = ["txvariantcode", "shopperinteraction", "issuercountrycode", "currencycode",
+                                         "shoppercountrycode", "accountcode", "card_id", "ip_id", "mail_id"]
+
         filtered_df = self.get_selected_features(selected_features)
-        print filtered_df
+        filtered_df = filtered_df.dropna(axis=0, how='any')
 
-        # INSTEAD OF DUMMIES => HOT ENCODING
-        hot_enc_features = Fraud.hot_encoder(filtered_df)
+        if hot_encoding:
+            print("Hot encoding")
+            Fraud.hot_encoder(filtered_df, list_with_categorical_columns)
+            filtered_df = filtered_df.dropna(axis=0, how='any')
 
-        le = preprocessing.LabelEncoder()
+            features_without_labels = list(filtered_df)
+            features_without_labels.remove(label)
+            resulting_feature_vector, labels_list = Fraud.get_records_and_labels(filtered_df, features_without_labels)
+            #resulting_feature_vector = Fraud.normalize_all_columns(resulting_feature_vector)
 
-        dummies_df = pd.get_dummies(filtered_df,
+            print len(resulting_feature_vector[3])
+
+        else:
+            print("Creating dummy variables.")
+            filtered_df = pd.get_dummies(filtered_df,
                                    columns=["txvariantcode", "shopperinteraction"])
-        #, "issuercountrycode"
-        dummies_df = dummies_df.dropna(axis=0, how='any')
-        print("\tFinished!!")
+            #, "issuercountrycode"
+            print("Reducing dimensionality.")
+            features_without_labels = list(filtered_df)
+            features_without_labels.remove(label)
+            features_list, labels_list = Fraud.get_records_and_labels(filtered_df, features_without_labels)
+            resulting_feature_vector = Fraud.reduce_dimensionality(features_list, labels_list, "lda")
+            print("\tFinished!!")
 
-        print("Reducing dimensionality.")
-        features_without_labels = list(dummies_df)
-        features_without_labels.remove(label)
-        features_list, labels_list = Fraud.get_records_and_labels(dummies_df, features_without_labels)
-        # resulting_feature_vector = Fraud.reduce_dimensionality(features_list, labels_list, "lda")
-        print("\tFinished!!")
-
-        resulting_feature_vector = features_list
 
         print("Building classifier and apply (or not) SMOTE")
         smote = False
 
         print("Build KNN classifier")
-        #Fraud.evaluate(resulting_feature_vector, labels_list, "knn", {"k":3}, use_smote=smote)
+        Fraud.evaluate(resulting_feature_vector, labels_list, "knn", {"k":4}, use_smote=smote)
 
         #Fraud.evaluate_knn(resulting_feature_vector, labels_list, smote)
 
@@ -399,22 +420,22 @@ class Fraud:
         #Fraud.evaluate_rf(pca_features, labels_list)
 
         print("Build Naive Bayes classifier")
-        #Fraud.evaluate(resulting_feature_vector, labels_list, "nb", {}, use_smote=smote)
+        Fraud.evaluate(resulting_feature_vector, labels_list, "nb", {}, use_smote=smote)
 
         print("Build lda classifier")
-        #Fraud.evaluate(resulting_feature_vector, labels_list, "lda", {}, use_smote=smote)
+        Fraud.evaluate(resulting_feature_vector, labels_list, "lda", {}, use_smote=smote)
 
         print("Build gradient boost classifier")
         params = {'n_estimators': 200, 'max_depth': 3, 'min_samples_split': 2,
                    'learning_rate': 0.01, 'loss': 'exponential'}
-        # Fraud.evaluate(resulting_feature_vector, labels_list, "gb", params, use_smote=False)
+        Fraud.evaluate(resulting_feature_vector, labels_list, "gb", params, use_smote=False)
 
         print("Build majority voting classifier")
-        #mv_params = {"knn":KNeighborsClassifier(n_neighbors=4), "nb": GaussianNB(), "lda": LinearDiscriminantAnalysis(),
-        #             "rf": RandomForestClassifier(n_jobs=5), "gb": GradientBoostingClassifier(**params),
-        #             "dt": tree.DecisionTreeClassifier()}
-        #Fraud.evaluate(resulting_feature_vector, labels_list, "mv", mv_params, use_smote=False)
-        print("\tFinished!!")
+        # mv_params = {"knn":KNeighborsClassifier(n_neighbors=4), "nb": GaussianNB(), "lda": LinearDiscriminantAnalysis(),
+        #              "rf": RandomForestClassifier(n_jobs=5), "gb": GradientBoostingClassifier(**params),
+        #              "dt": tree.DecisionTreeClassifier()}
+        # Fraud.evaluate(resulting_feature_vector, labels_list, "mv", mv_params, use_smote=False)
+        # print("\tFinished!!")
 
 
 #### REMEMBER ############################################
