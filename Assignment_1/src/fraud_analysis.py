@@ -6,7 +6,7 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.metrics import accuracy_score, average_precision_score, f1_score, recall_score, roc_auc_score
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn import decomposition, tree
+from sklearn import decomposition, tree, preprocessing
 import pandas as pd
 import numpy as np
 import time
@@ -21,8 +21,9 @@ columns = ["txid", "bookingdate", "issuercountrycode", "txvariantcode", "card_is
            "cardverificationcodesupplied", "cvcresponsecode", "creationdate", "accountcode", "mail_id",
            "ip_id", "card_id"]
 
-selected_features = ["issuercountrycode", "txvariantcode", "amount", "shopperinteraction", "cardverificationcodesupplied",
+selected_features = [ "txvariantcode", "amount", "shopperinteraction", "cardverificationcodesupplied",
                      "cvcresponsecode", "simple_journal", "creationdate_hour", "creationdate_dayofweek"]
+#"issuercountrycode"
 label = "simple_journal"
 features_for_convertion = ["issuercountrycode", "txvariantcode", "shopperinteraction"]
 
@@ -109,7 +110,7 @@ class Fraud:
     # The minority class gets oversampled to balance with the majority class
     # Output format: X_resampled, y_resampled
     def resample_smote(X, y):
-        sm = SMOTE()
+        sm = SMOTE(ratio=0.1)
         return sm.fit_sample(X, y)
 
     @staticmethod
@@ -352,12 +353,27 @@ class Fraud:
             resulting_features = lda.fit_transform(feature_vector, labels)
         return resulting_features
 
+    @staticmethod
+    def hot_encoder(features_df):
+        le = preprocessing.LabelEncoder()
+
+        pass
+
+
     # LET THE MAGIC BEGIN
     def run(self):
         print("Creating dummy variables.")
         filtered_df = self.get_selected_features(selected_features)
+        print filtered_df
+
+        # INSTEAD OF DUMMIES => HOT ENCODING
+        hot_enc_features = Fraud.hot_encoder(filtered_df)
+
+        le = preprocessing.LabelEncoder()
+
         dummies_df = pd.get_dummies(filtered_df,
-                                   columns=["txvariantcode", "issuercountrycode", "shopperinteraction"])
+                                   columns=["txvariantcode", "shopperinteraction"])
+        #, "issuercountrycode"
         dummies_df = dummies_df.dropna(axis=0, how='any')
         print("\tFinished!!")
 
@@ -365,21 +381,21 @@ class Fraud:
         features_without_labels = list(dummies_df)
         features_without_labels.remove(label)
         features_list, labels_list = Fraud.get_records_and_labels(dummies_df, features_without_labels)
-        resulting_feature_vector = Fraud.reduce_dimensionality(features_list, labels_list, "lda")
+        # resulting_feature_vector = Fraud.reduce_dimensionality(features_list, labels_list, "lda")
         print("\tFinished!!")
 
-
+        resulting_feature_vector = features_list
 
         print("Building classifier and apply (or not) SMOTE")
         smote = False
 
         print("Build KNN classifier")
-        #Fraud.evaluate(pca_features, labels_list, "knn", {"k":4}, use_smote=smote)
+        #Fraud.evaluate(resulting_feature_vector, labels_list, "knn", {"k":3}, use_smote=smote)
 
         #Fraud.evaluate_knn(resulting_feature_vector, labels_list, smote)
 
         print("Build Random Forest classifier")
-        #Fraud.evaluate(resulting_feature_vector, labels_list, "rf", {"n":15}, use_smote=smote)
+        Fraud.evaluate(resulting_feature_vector, labels_list, "rf", {"n":100}, use_smote=smote)
         #Fraud.evaluate_rf(pca_features, labels_list)
 
         print("Build Naive Bayes classifier")
@@ -394,10 +410,10 @@ class Fraud:
         # Fraud.evaluate(resulting_feature_vector, labels_list, "gb", params, use_smote=False)
 
         print("Build majority voting classifier")
-        mv_params = {"knn":KNeighborsClassifier(n_neighbors=4), "nb": GaussianNB(), "lda": LinearDiscriminantAnalysis(),
-                     "rf": RandomForestClassifier(n_jobs=5), "gb": GradientBoostingClassifier(**params),
-                     "dt": tree.DecisionTreeClassifier()}
-        Fraud.evaluate(resulting_feature_vector, labels_list, "mv", mv_params, use_smote=False)
+        #mv_params = {"knn":KNeighborsClassifier(n_neighbors=4), "nb": GaussianNB(), "lda": LinearDiscriminantAnalysis(),
+        #             "rf": RandomForestClassifier(n_jobs=5), "gb": GradientBoostingClassifier(**params),
+        #             "dt": tree.DecisionTreeClassifier()}
+        #Fraud.evaluate(resulting_feature_vector, labels_list, "mv", mv_params, use_smote=False)
         print("\tFinished!!")
 
 
