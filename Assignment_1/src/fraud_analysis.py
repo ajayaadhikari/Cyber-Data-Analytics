@@ -1,7 +1,5 @@
 from __future__ import division
 from imblearn.over_sampling import SMOTE
-from sklearn.metrics import confusion_matrix
-from sklearn.model_selection import train_test_split
 from sklearn.model_selection import KFold
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn import decomposition
@@ -10,22 +8,32 @@ import numpy as np
 import time
 import matplotlib.pyplot as plt
 import operator
+import os
 
 
-data_path = '../datasets/data_for_student_case.csv'
+data_path = os.path.join('..', 'datasets', 'data_for_student_case.csv')
 columns = ["txid", "bookingdate", "issuercountrycode", "txvariantcode", "card_issuer_identifier",
            "amount", "currencycode", "shoppercountrycode", "shopperinteraction", "simple_journal",
            "cardverificationcodesupplied", "cvcresponsecode", "creationdate", "accountcode", "mail_id",
            "ip_id", "card_id"]
 
+selected_features = ["issuercountrycode", "txvariantcode", "amount", "shopperinteraction", "cardverificationcodesupplied",
+                     "cvcresponsecode", "simple_journal"]
+label = "simple_journal"
+features_for_convertion = ["issuercountrycode", "txvariantcode", "shopperinteraction"]
+
 class Fraud:
     def __init__(self):
         self.load_data()
+        self.run()
 
     def load_data(self):
         # Read from csv
+        print("Reading from file")
         self.df = pd.read_csv(data_path, skip_blank_lines=True)
+        print("\tFinished!!!")
 
+        print("Pre-processing.")
         # Rename a column
         self.df.rename(columns={'bin': 'card_issuer_identifier'}, inplace=True)
         # Delete rows with null values for card_issuer_identifier
@@ -36,6 +44,8 @@ class Fraud:
         self.df["bookingdate"].apply(self.string_to_timestamp)
         self.df["card_issuer_identifier"].apply(float)
         self.df["amount"].apply(lambda x: float(x)/100)
+        print("\tFinished!!")
+        #self.df["simple_journal"].apply(lambda y: 0 if y == "Settled" else 1)
 
     # The minority class gets oversampled to balance with the majority class
     # Output format: X_resampled, y_resampled
@@ -44,8 +54,9 @@ class Fraud:
         sm = SMOTE()
         return sm.fit_sample(X, y)
 
-    def get_records_and_labels(self, columns):
-        return self.df[columns].values, self.df["simple_journal"].values
+    @staticmethod
+    def get_records_and_labels(df, columns):
+        return df[columns].values, df["simple_journal"].values
 
     # Output: dataframe with selected features
     def get_selected_features(self, feature_list):
@@ -164,21 +175,25 @@ class Fraud:
 
     @staticmethod
     def evaluate_knn(feature_vector, labels, k):
-        k_fold = KFold(n_splits=10)
+        unique, counts = np.unique(labels, return_counts=True)
+        print(dict(zip(unique, counts)))
+        k_fold = KFold(n_splits=4)
         real_labels = []
         predicted_labels = []
         print(len(labels))
         total = 0
-        for train, test in k_fold.split(feature_vector):
+        for train, test in k_fold.split(feature_vector,labels):
             features_train, labels_train = Fraud.resample_smote2(feature_vector[train], labels[train])
             features_test, labels_test = feature_vector[test], labels[test]
             total += len(test)
+            unique, counts = np.unique(labels_test, return_counts=True)
+            print(dict(zip(unique, counts)))
 
             # Build classifier using training set
             knn_classifier = KNeighborsClassifier(n_neighbors=k)
             knn_classifier.fit(features_train, labels_train)
 
-            # Save the labels for confusion matrix
+            # Save the labels
             real_labels.extend(labels_test)
             predicted_labels.extend(knn_classifier.predict(features_test))
         print("Total",total)
@@ -206,14 +221,27 @@ class Fraud:
         print 'FN: ' + str(FN)
         print 'TN: ' + str(TN)
 
+    def run(self):
+        print("Creating dummy variables.")
+        filtered_df = self.get_selected_features(selected_features)
+        dummies_df = pd.get_dummies(filtered_df, columns=["txvariantcode", "issuercountrycode", "shopperinteraction"])
+        dummies_df = dummies_df.dropna(axis=0, how='any')
+        print("\tFinished!!")
+
+        print("Applying PCA.")
+        features_without_labels = list(dummies_df)
+        features_without_labels.remove(label)
+        features_list, labels_list = self.get_records_and_labels(dummies_df, features_without_labels)
+        pca = decomposition.PCA(n_components=15)
+        pca_features = pca.fit_transform(features_list)
+        print("\tFinished!!")
+
+        print("Building classifier")
+        Fraud.evaluate_knn(pca_features, labels_list, 3)
+        print("\tFinished!!")
+
 
 # LET THE MAGIC BEGIN
-
-selected_features = ["issuercountrycode", "txvariantcode", "amount", "shopperinteraction", "cardverificationcodesupplied",
-                     "cvcresponsecode", "simple_journal"]
-
-label = "simple_journal"
-features_for_convertion = ["issuercountrycode", "txvariantcode", "shopperinteraction"]
 
 #### REMEMBER ############################################
 # issuercountrycode: needs different columns per country {1,0}
