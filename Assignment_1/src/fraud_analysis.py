@@ -124,7 +124,7 @@ class Fraud:
     # The minority class gets oversampled to balance with the majority class
     # Output format: X_resampled, y_resampled
     def resample_smote(X, y):
-        sm = SMOTE(ratio=0.1)
+        sm = SMOTE(ratio=0.008)
         return sm.fit_sample(X, y)
 
     @staticmethod
@@ -415,7 +415,7 @@ class Fraud:
         smote = False
 
         print("Build KNN classifier")
-        Fraud.evaluate(resulting_feature_vector, labels_list, "knn", {"k":4}, use_smote=smote)
+        #Fraud.evaluate(resulting_feature_vector, labels_list, "knn", {"k":4}, use_smote=smote)
 
         #Fraud.evaluate_knn(resulting_feature_vector, labels_list, smote)
 
@@ -426,20 +426,26 @@ class Fraud:
         #Fraud.evaluate_rf(pca_features, labels_list)
 
         print("Build Naive Bayes classifier")
-        Fraud.evaluate(resulting_feature_vector, labels_list, "nb", {}, use_smote=smote)
+        #Fraud.evaluate(resulting_feature_vector, labels_list, "nb", {}, use_smote=smote)
 
         print("Build lda classifier")
-        Fraud.evaluate(resulting_feature_vector, labels_list, "lda", {}, use_smote=smote)
+        #Fraud.evaluate(resulting_feature_vector, labels_list, "lda", {}, use_smote=smote)
 
         print("Build gradient boost classifier")
-        params = {'n_estimators': 100, 'max_depth': 3, 'min_samples_split': 2,
-                    'learning_rate': 0.1, 'loss': 'deviance'}
-        Fraud.evaluate(resulting_feature_vector, labels_list, "gb", params, use_smote=False)
-        #
+        # for estimators in[50, 100, 150, 200]:
+        #     for learning in [0.04, 0.08, 0.12, 0.2]:
+        #         for loss in ["deviance", "exponential"]:
+        estimators = 100
+        loss = "deviance"
+        learning = 0.08
+        params = {'n_estimators': estimators, 'max_depth': 3, 'min_samples_split': 2,
+                    'learning_rate': learning, 'loss': loss}
+        Fraud.evaluate(resulting_feature_vector, labels_list, "gb", params, use_smote=True)
+            #
         print("Build majority voting classifier")
         # mv_params = {"knn":KNeighborsClassifier(n_neighbors=4), "nb": GaussianNB(), "lda": LinearDiscriminantAnalysis(),
-        #               "rf": RandomForestClassifier(n_jobs=5), "gb": GradientBoostingClassifier(**params),
-        #               "dt": tree.DecisionTreeClassifier()}
+        #                "rf": RandomForestClassifier(n_jobs=5), "gb": GradientBoostingClassifier(**params),
+        #                "dt": tree.DecisionTreeClassifier()}
         # Fraud.evaluate(resulting_feature_vector, labels_list, "mv", mv_params, use_smote=False)
         print("Finished!!")
 
