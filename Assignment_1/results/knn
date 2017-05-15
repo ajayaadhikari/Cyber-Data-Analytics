@@ -177,3 +177,179 @@ Recall: 0.0202898550725
 AUC: 0.414221550683
 F1: 0.0101229211858
 
+Variables: {'k': 4}, k_fold: 10, use_smote: False
+TP: 0
+FP: 95
+FN: 345
+TN: 223402
+Accuracy: 0.998034327785
+Precision: 0.000770632857105
+Recall: 0.0
+AUC: 0.474083567441
+F1: 0.0
+
+Variables: {'k': 4}, k_fold: 10, use_smote: True
+TP: 204
+FP: 27295
+FN: 141
+TN: 196202
+Accuracy: 0.877431402507
+Precision: 0.299676354001
+Recall: 0.591304347826
+AUC: 0.386039672549
+F1: 0.0146530670881
+
+Variables: {'k': 4}, k_fold: 10, use_smote: True
+TP: 213
+FP: 29667
+FN: 132
+TN: 193830
+Accuracy: 0.866874849224
+Precision: 0.312554760034
+Recall: 0.617391304348
+AUC: 0.3707211062
+F1: 0.014094292804
+
+Variables: {'k': 4}, k_fold: 10, use_smote: False
+TP: 0
+FP: 56
+FN: 345
+TN: 223441
+Accuracy: 0.998208557822
+Precision: 0.000770632857105
+Recall: 0.0
+AUC: 0.480987845831
+F1: 0.0
+
+Variables: {'k': 3}, k_fold: 10, use_smote: False
+TP: 1
+FP: 195
+FN: 344
+TN: 223302
+Accuracy: 0.997592051536
+Precision: 0.00476869490916
+Recall: 0.00289855072464
+AUC: 0.486676272865
+F1: 0.00369685767098
+
+Variables: {'k': 3}, k_fold: 10, use_smote: True
+TP: 176
+FP: 21827
+FN: 169
+TN: 201670
+Accuracy: 0.901734258986
+Precision: 0.259449416802
+Recall: 0.510144927536
+AUC: 0.326741921057
+F1: 0.0157508501879
+
+Variables: {'k': 3}, k_fold: 10, use_smote: True
+TP: 86
+FP: 11887
+FN: 259
+TN: 211610
+Accuracy: 0.945738511986
+Precision: 0.128807628247
+Recall: 0.249275362319
+AUC: 0.3302902422
+F1: 0.0139633057314
+
+Variables: {'k': 3}, k_fold: 10, use_smote: True
+TP: 62
+FP: 7643
+FN: 283
+TN: 215854
+Accuracy: 0.964591095505
+Precision: 0.094510576232
+Recall: 0.179710144928
+AUC: 0.35171066395
+F1: 0.0154037267081
+
+Variables: {'k': 3}, k_fold: 10, use_smote: False
+TP: 53
+FP: 4666
+FN: 262
+TN: 185570
+Accuracy: 0.974138157239
+Precision: 0.0904300606439
+Recall: 0.168253968254
+AUC: 0.398577456172
+F1: 0.0210568136671
+
+Variables: {'k': 3}, k_fold: 10, use_smote: False
+TP: 44
+FP: 4660
+FN: 271
+TN: 185576
+Accuracy: 0.974122413422
+Precision: 0.0752292363067
+Recall: 0.139682539683
+AUC: 0.400319828303
+F1: 0.0175333731819
+
+Variables: {'k': 4}, k_fold: 10, use_smote: False
+TP: 26
+FP: 3796
+FN: 289
+TN: 186440
+Accuracy: 0.978562169708
+Precision: 0.0454295289811
+Recall: 0.0825396825397
+AUC: 0.39188459147
+F1: 0.012569494803
+
+Variables: {'k': 4}, k_fold: 10, use_smote: False
+TP: 2
+FP: 991
+FN: 313
+TN: 189245
+Accuracy: 0.993156687711
+Precision: 0.00500295495349
+Recall: 0.00634920634921
+AUC: 0.498366990775
+F1: 0.00305810397554
+
+Variables: {'k': 4}, k_fold: 10, use_smote: False
+TP: 47
+FP: 5017
+FN: 268
+TN: 184653
+Accuracy: 0.97218201437
+Precision: 0.0799490937601
+Recall: 0.149206349206
+AUC: 0.37840223747
+F1: 0.0174753671686
+
+Variables: {'k': 4}, k_fold: 10, use_smote: False
+TP: 47
+FP: 5017
+FN: 268
+TN: 184653
+Accuracy: 0.97218201437
+Precision: 0.0799490937601
+Recall: 0.149206349206
+AUC: 0.37840223747
+F1: 0.0174753671686
+
+Variables: {'k': 4}, k_fold: 10, use_smote: False
+TP: 71
+FP: 15859
+FN: 244
+TN: 173811
+Accuracy: 0.915240676896
+Precision: 0.115569068344
+Recall: 0.225396825397
+AUC: 0.33607085322
+F1: 0.00874115112342
+
+Variables: {'k': 4}, k_fold: 10, use_smote: False
+TP: 1
+FP: 59
+FN: 344
+TN: 223106
+Accuracy: 0.998196948682
+Precision: 0.0105521492084
+Recall: 0.00289855072464
+AUC: 0.452159866116
+F1: 0.00493827160494
+
