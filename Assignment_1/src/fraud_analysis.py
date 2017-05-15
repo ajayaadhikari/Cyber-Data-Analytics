@@ -78,11 +78,11 @@ class Fraud:
     #     test_set = self.df.iloc[int(number_of_records * perc):]
     #     return train_set, test_set
 
-    # Output format: {"US": 112, ...}
-    def total_per_country(self):
-        result = self.df["issuercountrycode"].value_counts().to_dict()
-        #result.to_csv(path=path,index_label=["issuercountrycode","transaction_count"],index=True)
-        return result
+    # # Output format: {"US": 112, ...}
+    # def total_per_country(self):
+    #     result = self.df["issuercountrycode"].value_counts().to_dict()
+    #     #result.to_csv(path=path,index_label=["issuercountrycode","transaction_count"],index=True)
+    #     return result
 
 
 
@@ -113,6 +113,12 @@ class Fraud:
         plt.ylabel('Number of Transactions`')
         plt.title('Balance of the Data')
         plt.show()
+
+    # Output format: {"US": 112, ...}
+    def total_per_country(df):
+        result = df["issuercountrycode"].value_counts().to_dict()
+        # result.to_csv(path=path,index_label=["issuercountrycode","transaction_count"],index=True)
+        return result
 
     @staticmethod
     def normalize_all_columns(x):
@@ -408,6 +414,7 @@ class Fraud:
             features_without_labels.remove(label)
             features_list, labels_list = Fraud.get_records_and_labels(filtered_df, features_without_labels)
             resulting_feature_vector = Fraud.reduce_dimensionality(features_list, labels_list, "lda")
+            #resulting_feature_vector = features_list
             print("\tFinished!!")
 
 
@@ -425,6 +432,9 @@ class Fraud:
 
         #Fraud.evaluate_rf(pca_features, labels_list)
 
+        print("Build Decision Tree classifier")
+        Fraud.evaluate(resulting_feature_vector, labels_list, "dt", {}, use_smote=False)
+
         print("Build Naive Bayes classifier")
         #Fraud.evaluate(resulting_feature_vector, labels_list, "nb", {}, use_smote=smote)
 
@@ -440,49 +450,33 @@ class Fraud:
         learning = 0.08
         params = {'n_estimators': estimators, 'max_depth': 3, 'min_samples_split': 2,
                     'learning_rate': learning, 'loss': loss}
-        Fraud.evaluate(resulting_feature_vector, labels_list, "gb", params, use_smote=True)
-            #
+        #Fraud.evaluate(resulting_feature_vector, labels_list, "gb", params, use_smote=True)
+        #
         print("Build majority voting classifier")
-        # mv_params = {"knn":KNeighborsClassifier(n_neighbors=4), "nb": GaussianNB(), "lda": LinearDiscriminantAnalysis(),
+        #mv_params = {"knn":KNeighborsClassifier(n_neighbors=4), "nb": GaussianNB(), "lda": LinearDiscriminantAnalysis(),
         #                "rf": RandomForestClassifier(n_jobs=5), "gb": GradientBoostingClassifier(**params),
         #                "dt": tree.DecisionTreeClassifier()}
-        # Fraud.evaluate(resulting_feature_vector, labels_list, "mv", mv_params, use_smote=False)
+        #Fraud.evaluate(resulting_feature_vector, labels_list, "mv", mv_params, use_smote=False)
         print("Finished!!")
 
-
-#### REMEMBER ############################################
-# issuercountrycode: needs different columns per country {1,0}
-# txvariantcode: same as above
-# shopperinteraction: {Ecom, ContAuth, POS} needs different columns
-# cardverificationcodesupplied: {True, False} which for python => {1,0} so it's ok
-# amount: numerical, can be used as it is
-# cvcresponsecode: binary, can be used as it is
-#### STOP REMEMBERING ############################################
 
 # Initialization of dataframe object (transactions)
 trans_obj = Fraud()
 
 # Selection of specified features (returns dataframe)
-#trans_sel_features = Fraud()
-#trans_sel_features.df = trans_obj.get_selected_features(selected_features)
+# trans_sel_features = Fraud()
+# trans_sel_features.df = trans_obj.get_selected_features(selected_features)
+
+#get plots
+#Fraud.get_plots()
 
 #print trans_sel_features.df.shape
-
-# convertion of features for SMOTE
-#trans_for_SMT = Fraud()
-#trans_for_SMT.df = pd.get_dummies(trans_sel_features.df, columns=["txvariantcode","issuercountrycode", "shopperinteraction"])
-
 
 # sort dataset by date
 #trans_for_SMT.df['creationdate'] =pd.to_datetime(trans_for_SMT.df.creationdate)
 #trans_for_SMT.df.sort_values(by="creationdate")
 
-# remove rows with missed values
-#trans_for_SMT.df = trans_for_SMT.df.dropna(axis=0, how='any')
 
-# split dataset to train and test set
-# IMPORTANT: smote only to training set !!
-# Take into account date ordering
 
 
 # features_without_labels = list(trans_for_SMT.df)
@@ -541,8 +535,7 @@ trans_obj = Fraud()
 #refused_obj.df = refused_obj.filter_records("Refused")
 
 
-#get plots
-#Fraud.get_plots()
+
 
 
 # NOTES
