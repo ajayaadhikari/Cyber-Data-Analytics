@@ -6,7 +6,7 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.metrics import accuracy_score, average_precision_score, f1_score, recall_score, roc_auc_score
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn import decomposition
+from sklearn import decomposition, tree
 import pandas as pd
 import numpy as np
 import time
@@ -190,6 +190,12 @@ class Fraud:
 
 
     @staticmethod
+    def decision_tree(features_train, labels_train, variables):
+        dt_classifier = tree.DecisionTreeClassifier()
+        dt_classifier.fit(features_train, labels_train)
+        return dt_classifier
+
+    @staticmethod
     def random_forest(features_train, labels_train, variables):
         n = variables["n"]
         rf_classifier = RandomForestClassifier(n_jobs=n)
@@ -225,13 +231,14 @@ class Fraud:
     @staticmethod
     def get_classifier(name_classifier, features_train, labels_train, variables):
         classifiers = {"knn": Fraud.knn, "rf": Fraud.random_forest, "gb": Fraud.gradient_boost,
-                       "nb": Fraud.naive_bayes, "lda": Fraud.lda, "mv": Fraud.majority_voting}
+                       "nb": Fraud.naive_bayes, "lda": Fraud.lda, "mv": Fraud.majority_voting,
+                       "dt": Fraud.decision_tree}
         return classifiers[name_classifier](features_train, labels_train, variables)
 
     @staticmethod
-    def write_to_file(classifier_name, variables, results, k_fold):
-        result = "Variables: %s, k_fold: %s\nTP: %s\nFP: %s\nFN: %s\nTN: %s\nAccuracy: %s\nPrecision: %s\nRecall: %s\nAUC: %s\nF1: %s\n\n" % (
-            str(variables), k_fold, results["TP"], results["FP"], results["FN"], results["TN"],
+    def write_to_file(classifier_name, variables, results, k_fold, use_smote):
+        result = "Variables: %s, k_fold: %s, use_smote: %s\nTP: %s\nFP: %s\nFN: %s\nTN: %s\nAccuracy: %s\nPrecision: %s\nRecall: %s\nAUC: %s\nF1: %s\n\n" % (
+            str(variables), k_fold, str(use_smote), results["TP"], results["FP"], results["FN"], results["TN"],
             results["accuracy"],results["precision"],results["recall"], results["auc"], results["f1"]
         )
         with open(os.path.join("..", "results", classifier_name), "a") as myfile:
@@ -240,40 +247,8 @@ class Fraud:
 
 
     @staticmethod
-    def evaluate(feature_vector, labels, classifier_name, variables, use_smote):
-        n_splits = 10
-
-        unique, counts = np.unique(labels, return_counts=True)
-        print("Total label distribution", dict(zip(unique, counts)))
-
-        convert_zero_one = lambda x: map(lambda y: 0 if y == "Settled" else 1, x)
-        labels = np.array(convert_zero_one(labels))
-        k_fold = StratifiedKFold(n_splits=n_splits)
-        real_labels = []
-        predicted_labels = []
-        probability_labels = []
-        print("Applying %s-fold crossvalidation with %s predictor, variables %s and smote=%s" % (n_splits, classifier_name,str(variables), str(use_smote)))
-        for train, test in k_fold.split(feature_vector,labels):
-            if use_smote:
-                features_train, labels_train = Fraud.resample_smote(feature_vector[train], labels[train])
-            else:
-                features_train, labels_train = feature_vector[train], labels[train]
-            features_test, labels_test = feature_vector[test], labels[test]
-
-            # Print distribution of the split
-            unique, counts = np.unique(labels_test, return_counts=True)
-            print("Current fold distribution", dict(zip(unique, counts)))
-
-            # Build classifier using training set
-            classifier = Fraud.get_classifier(classifier_name, features_train, labels_train, variables)
-
-            # Save the labels
-            real_labels.extend(labels_test)
-            predicted_labels.extend(classifier.predict(features_test))
-            probability_labels.extend(classifier.predict_proba(features_test))
-
-        print("\tFinished")
-        print("Retrieving results.")
+    def get_evaluation_metrics(real_labels, predicted_labels, probability_labels):
+        print("Calculating evaluation metrics.")
         TP = 0
         FP = 0
         FN = 0
@@ -299,9 +274,49 @@ class Fraud:
                              "precision":precision, "recall": recall, "auc": auc}
         print("Result:%s" % str(resulting_metrics))
         print("\tFinished!")
+        return resulting_metrics
+
+    @staticmethod
+    def evaluate(feature_vector, labels, classifier_name, variables, use_smote):
+        n_splits = 10
+
+        # Print the distribution of the lables
+        unique, counts = np.unique(labels, return_counts=True)
+        print("Total label distribution", dict(zip(unique, counts)))
+
+        convert_zero_one = lambda x: map(lambda y: 0 if y == "Settled" else 1, x)
+        labels = np.array(convert_zero_one(labels))
+        k_fold = StratifiedKFold(n_splits=n_splits)
+        real_labels = []
+        predicted_labels = []
+        probability_labels = []
+        print("Applying %s-fold crossvalidation with %s predictor, variables %s and smote=%s" % (n_splits, classifier_name,str(variables), str(use_smote)))
+        for train, test in k_fold.split(feature_vector,labels):
+            if use_smote:
+                features_train, labels_train = Fraud.resample_smote(feature_vector[train], labels[train])
+            else:
+                features_train, labels_train = feature_vector[train], labels[train]
+            features_test, labels_test = feature_vector[test], labels[test]
+
+            # Print distribution of the labels of the current split
+            unique, counts = np.unique(labels_test, return_counts=True)
+            print("Current fold distribution", dict(zip(unique, counts)))
+
+            # Build classifier using training set
+            classifier = Fraud.get_classifier(classifier_name, features_train, labels_train, variables)
+
+            # Save the labels
+            real_labels.extend(labels_test)
+            predicted_labels.extend(classifier.predict(features_test))
+            probability_labels.extend(classifier.predict_proba(features_test))
+
+        print("\tFinished")
+
+        # Get the evaluation metrics
+        resulting_metrics = Fraud.get_evaluation_metrics(real_labels, predicted_labels, probability_labels)
 
         print("Writing to file")
-        Fraud.write_to_file(classifier_name, variables, resulting_metrics,n_splits)
+        Fraud.write_to_file(classifier_name, variables, resulting_metrics, n_splits, use_smote)
         print("\tFinished!")
 
         return resulting_metrics
@@ -317,6 +332,21 @@ class Fraud:
         for i in range(10, 20, 2):
             Fraud.evaluate(feature_vector, labels, "rf", {"n":i}, use_smote=smote)
 
+    @staticmethod
+    def evaluate_gb(feature_vector, labels, smote):
+        pass
+
+    @staticmethod
+    def reduce_dimensionality(feature_vector, labels, method):
+        print("\tUsing %s" % method)
+        if method == "pca":
+            pca = decomposition.PCA(n_components=30)
+            resulting_features = pca.fit_transform(feature_vector)
+        elif method == "lda":
+            lda = LinearDiscriminantAnalysis(n_components=20)
+            resulting_features = lda.fit_transform(feature_vector, labels)
+        return resulting_features
+
     # LET THE MAGIC BEGIN
     def run(self):
         print("Creating dummy variables.")
@@ -326,41 +356,43 @@ class Fraud:
         dummies_df = dummies_df.dropna(axis=0, how='any')
         print("\tFinished!!")
 
-        print("Applying PCA.")
+        print("Reducing dimensionality.")
         features_without_labels = list(dummies_df)
         features_without_labels.remove(label)
-        features_list, labels_list = self.get_records_and_labels(dummies_df, features_without_labels)
-        pca = decomposition.PCA(n_components=30)
-        pca_features = pca.fit_transform(features_list)
-
+        features_list, labels_list = Fraud.get_records_and_labels(dummies_df, features_without_labels)
+        resulting_feature_vector = Fraud.reduce_dimensionality(features_list, labels_list, "lda")
         print("\tFinished!!")
+
+
 
         print("Building classifier and apply (or not) SMOTE")
         smote = False
 
         print("Build KNN classifier")
         #Fraud.evaluate(pca_features, labels_list, "knn", {"k":4}, use_smote=smote)
-        #Fraud.evaluate_knn(pca_features, labels_list, smote)
+
+        #Fraud.evaluate_knn(resulting_feature_vector, labels_list, smote)
 
         print("Build Random Forest classifier")
-        #Fraud.evaluate(pca_features, labels_list, "rf", {"n":15}, use_smote=smote)
+        #Fraud.evaluate(resulting_feature_vector, labels_list, "rf", {"n":15}, use_smote=smote)
         #Fraud.evaluate_rf(pca_features, labels_list)
 
         print("Build Naive Bayes classifier")
-        #Fraud.evaluate(pca_features, labels_list, "nb", {}, use_smote=smote)
+        #Fraud.evaluate(resulting_feature_vector, labels_list, "nb", {}, use_smote=smote)
 
         print("Build lda classifier")
-        #Fraud.evaluate(pca_features, labels_list, "lda", {}, use_smote=smote)
+        #Fraud.evaluate(resulting_feature_vector, labels_list, "lda", {}, use_smote=smote)
 
         print("Build gradient boost classifier")
-        params = {'n_estimators': 100, 'max_depth': 3, 'min_samples_split': 2,
-                  'learning_rate': 0.1, 'loss': 'exponential'}
-        #Fraud.evaluate(pca_features, labels_list, "gb", params, use_smote=False)
+        params = {'n_estimators': 200, 'max_depth': 3, 'min_samples_split': 2,
+                   'learning_rate': 0.01, 'loss': 'exponential'}
+        # Fraud.evaluate(resulting_feature_vector, labels_list, "gb", params, use_smote=False)
 
         print("Build majority voting classifier")
-        mv_params = {"knn":KNeighborsClassifier(n_neighbors=4),"nb":GaussianNB(), "lda":LinearDiscriminantAnalysis(),
-                  "rf":RandomForestClassifier(n_jobs=5)}#, "gb": GradientBoostingClassifier(**params)}
-        Fraud.evaluate(pca_features, labels_list, "mv", mv_params, use_smote=False)
+        mv_params = {"knn":KNeighborsClassifier(n_neighbors=4), "nb": GaussianNB(), "lda": LinearDiscriminantAnalysis(),
+                     "rf": RandomForestClassifier(n_jobs=5), "gb": GradientBoostingClassifier(**params),
+                     "dt": tree.DecisionTreeClassifier()}
+        Fraud.evaluate(resulting_feature_vector, labels_list, "mv", mv_params, use_smote=False)
         print("\tFinished!!")
 
 
