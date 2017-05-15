@@ -176,30 +176,42 @@ class Fraud:
         plt.show()
 
     @staticmethod
-    def evaluate_knn(feature_vector, labels, k):
+    def knn(features_train, labels_train, variables):
+        k = variables["k"]
+        knn_classifier = KNeighborsClassifier(n_neighbors=k)
+        knn_classifier.fit(features_train, labels_train)
+        return knn_classifier
+
+    @staticmethod
+    def get_classifier(name_classifier, features_train, labels_train, variables):
+        classifiers = {"knn": Fraud.knn}
+        return classifiers[name_classifier](features_train, labels_train, variables)
+
+    @staticmethod
+    def evaluate(feature_vector, labels, classifier_name, variables):
+        n_splits = 10
         unique, counts = np.unique(labels, return_counts=True)
-        print(dict(zip(unique, counts)))
-        k_fold = StratifiedKFold(n_splits=10)
+        print("Total label distribution", dict(zip(unique, counts)))
+        k_fold = StratifiedKFold(n_splits=n_splits)
         real_labels = []
         predicted_labels = []
-        print(len(labels))
-        total = 0
+        print("Applying %s-fold crossvalidation with %s predictor, and variables %s" % (n_splits, classifier_name, str(variables)))
         for train, test in k_fold.split(feature_vector,labels):
             features_train, labels_train = Fraud.resample_smote2(feature_vector[train], labels[train])
             features_test, labels_test = feature_vector[test], labels[test]
-            total += len(test)
+
+            # Print distribution of the split
             unique, counts = np.unique(labels_test, return_counts=True)
-            print(dict(zip(unique, counts)))
+            print("Current fold distribution", dict(zip(unique, counts)))
 
             # Build classifier using training set
-            knn_classifier = KNeighborsClassifier(n_neighbors=k)
-            knn_classifier.fit(features_train, labels_train)
+            classifier = Fraud.get_classifier(classifier_name, features_train, labels_train, variables)
 
             # Save the labels
             real_labels.extend(labels_test)
-            predicted_labels.extend(knn_classifier.predict(features_test))
-        print("Total",total)
-
+            predicted_labels.extend(classifier.predict(features_test))
+        print("\tFinished")
+        print("Retrieving results.")
         # convert labels to {0,1} , 0: Settled, 1: Chargeback
         convert_zero_one = lambda x: map(lambda y: 0 if y == "Settled" else 1, x)
         y_predict = convert_zero_one(predicted_labels)
@@ -222,6 +234,7 @@ class Fraud:
         print 'FP: ' + str(FP)
         print 'FN: ' + str(FN)
         print 'TN: ' + str(TN)
+        print"\tFinished!"
 
     def run(self):
         print("Creating dummy variables.")
@@ -239,7 +252,7 @@ class Fraud:
         print("\tFinished!!")
 
         print("Building classifier and apply SMOTE")
-        Fraud.evaluate_knn(pca_features, labels_list, 3)
+        Fraud.evaluate(pca_features, labels_list, "knn", {"k":3})
         print("\tFinished!!")
 
 
