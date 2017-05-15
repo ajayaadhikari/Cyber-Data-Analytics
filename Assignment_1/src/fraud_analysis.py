@@ -228,40 +228,8 @@ class Fraud:
         myfile.close()
 
     @staticmethod
-    def evaluate(feature_vector, labels, classifier_name, variables, use_smote):
-        n_splits = 2
-
-        unique, counts = np.unique(labels, return_counts=True)
-        print("Total label distribution", dict(zip(unique, counts)))
-
-        convert_zero_one = lambda x: map(lambda y: 0 if y == "Settled" else 1, x)
-        labels = np.array(convert_zero_one(labels))
-        k_fold = StratifiedKFold(n_splits=n_splits)
-        real_labels = []
-        predicted_labels = []
-        probability_labels = []
-        print("Applying %s-fold crossvalidation with %s predictor, variables %s and smote=%s" % (n_splits, classifier_name,str(variables), str(use_smote)))
-        for train, test in k_fold.split(feature_vector,labels):
-            if use_smote:
-                features_train, labels_train = Fraud.resample_smote(feature_vector[train], labels[train])
-            else:
-                features_train, labels_train = feature_vector[train], labels[train]
-            features_test, labels_test = feature_vector[test], labels[test]
-
-            # Print distribution of the split
-            unique, counts = np.unique(labels_test, return_counts=True)
-            print("Current fold distribution", dict(zip(unique, counts)))
-
-            # Build classifier using training set
-            classifier = Fraud.get_classifier(classifier_name, features_train, labels_train, variables)
-
-            # Save the labels
-            real_labels.extend(labels_test)
-            predicted_labels.extend(classifier.predict(features_test))
-            probability_labels.extend(classifier.predict_proba(features_test))
-
-        print("\tFinished")
-        print("Retrieving results.")
+    def get_evaluation_metrics(real_labels, predicted_labels, probability_labels):
+        print("Calculating evaluation metrics.")
         TP = 0
         FP = 0
         FN = 0
@@ -287,6 +255,46 @@ class Fraud:
                              "precision":precision, "recall": recall, "auc": auc}
         print("Result:%s" % str(resulting_metrics))
         print("\tFinished!")
+        return resulting_metrics
+
+    @staticmethod
+    def evaluate(feature_vector, labels, classifier_name, variables, use_smote):
+        n_splits = 2
+
+        # Print the distribution of the lables
+        unique, counts = np.unique(labels, return_counts=True)
+        print("Total label distribution", dict(zip(unique, counts)))
+
+        convert_zero_one = lambda x: map(lambda y: 0 if y == "Settled" else 1, x)
+        labels = np.array(convert_zero_one(labels))
+        k_fold = StratifiedKFold(n_splits=n_splits)
+        real_labels = []
+        predicted_labels = []
+        probability_labels = []
+        print("Applying %s-fold crossvalidation with %s predictor, variables %s and smote=%s" % (n_splits, classifier_name,str(variables), str(use_smote)))
+        for train, test in k_fold.split(feature_vector,labels):
+            if use_smote:
+                features_train, labels_train = Fraud.resample_smote(feature_vector[train], labels[train])
+            else:
+                features_train, labels_train = feature_vector[train], labels[train]
+            features_test, labels_test = feature_vector[test], labels[test]
+
+            # Print distribution of the labels of the current split
+            unique, counts = np.unique(labels_test, return_counts=True)
+            print("Current fold distribution", dict(zip(unique, counts)))
+
+            # Build classifier using training set
+            classifier = Fraud.get_classifier(classifier_name, features_train, labels_train, variables)
+
+            # Save the labels
+            real_labels.extend(labels_test)
+            predicted_labels.extend(classifier.predict(features_test))
+            probability_labels.extend(classifier.predict_proba(features_test))
+
+        print("\tFinished")
+
+        # Get the evaluation metrics
+        resulting_metrics = Fraud.get_evaluation_metrics(real_labels, predicted_labels, probability_labels)
 
         print("Writing to file")
         Fraud.write_to_file(classifier_name, variables, resulting_metrics, n_splits, use_smote)
