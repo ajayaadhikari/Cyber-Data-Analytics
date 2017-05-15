@@ -1,8 +1,7 @@
 from __future__ import division
 from imblearn.over_sampling import SMOTE
 from sklearn.model_selection import StratifiedKFold
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.ensemble import RandomForestClassifier, VotingClassifier, GradientBoostingClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.metrics import accuracy_score, average_precision_score, f1_score, recall_score, roc_auc_score
@@ -189,6 +188,7 @@ class Fraud:
         lda_classifier.fit(features_train, labels_train)
         return lda_classifier
 
+
     @staticmethod
     def random_forest(features_train, labels_train, variables):
         n = variables["n"]
@@ -212,9 +212,20 @@ class Fraud:
         return gb_classifier
 
     @staticmethod
+    def majority_voting(features_train, labels_train, variables):
+        classifiers_list = []
+        for classifier_name in variables:
+            model = variables[classifier_name]
+            classifiers_list.append((classifier_name, model))
+        mv_classifier = VotingClassifier(estimators = classifiers_list, voting='soft')
+        mv_classifier = mv_classifier.fit(features_train, labels_train)
+        return mv_classifier
+
+
+    @staticmethod
     def get_classifier(name_classifier, features_train, labels_train, variables):
         classifiers = {"knn": Fraud.knn, "rf": Fraud.random_forest, "gb": Fraud.gradient_boost,
-                       "nb": Fraud.naive_bayes, "lda": Fraud.lda}
+                       "nb": Fraud.naive_bayes, "lda": Fraud.lda, "mv": Fraud.majority_voting}
         return classifiers[name_classifier](features_train, labels_train, variables)
 
     @staticmethod
@@ -227,9 +238,10 @@ class Fraud:
             myfile.write(result)
         myfile.close()
 
+
     @staticmethod
     def evaluate(feature_vector, labels, classifier_name, variables, use_smote):
-        n_splits = 2
+        n_splits = 10
 
         unique, counts = np.unique(labels, return_counts=True)
         print("Total label distribution", dict(zip(unique, counts)))
@@ -328,7 +340,7 @@ class Fraud:
 
         print("Build KNN classifier")
         #Fraud.evaluate(pca_features, labels_list, "knn", {"k":4}, use_smote=smote)
-        Fraud.evaluate_knn(pca_features, labels_list, smote)
+        #Fraud.evaluate_knn(pca_features, labels_list, smote)
 
         print("Build Random Forest classifier")
         #Fraud.evaluate(pca_features, labels_list, "rf", {"n":15}, use_smote=smote)
@@ -344,9 +356,12 @@ class Fraud:
         params = {'n_estimators': 100, 'max_depth': 3, 'min_samples_split': 2,
                   'learning_rate': 0.1, 'loss': 'exponential'}
         #Fraud.evaluate(pca_features, labels_list, "gb", params, use_smote=False)
+
+        print("Build majority voting classifier")
+        mv_params = {"knn":KNeighborsClassifier(n_neighbors=4),"nb":GaussianNB(), "lda":LinearDiscriminantAnalysis(),
+                  "rf":RandomForestClassifier(n_jobs=5)}#, "gb": GradientBoostingClassifier(**params)}
+        Fraud.evaluate(pca_features, labels_list, "mv", mv_params, use_smote=False)
         print("\tFinished!!")
-
-
 
 
 #### REMEMBER ############################################
