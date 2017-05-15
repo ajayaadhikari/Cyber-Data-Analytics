@@ -188,16 +188,19 @@ class Fraud:
         return classifiers[name_classifier](features_train, labels_train, variables)
 
     @staticmethod
-    def evaluate(feature_vector, labels, classifier_name, variables):
+    def evaluate(feature_vector, labels, classifier_name, variables, use_smote):
         n_splits = 10
         unique, counts = np.unique(labels, return_counts=True)
         print("Total label distribution", dict(zip(unique, counts)))
         k_fold = StratifiedKFold(n_splits=n_splits)
         real_labels = []
         predicted_labels = []
-        print("Applying %s-fold crossvalidation with %s predictor, and variables %s" % (n_splits, classifier_name, str(variables)))
+        print("Applying %s-fold crossvalidation with %s predictor, variables %s and smote=%s" % (n_splits, classifier_name,str(variables), str(use_smote)))
         for train, test in k_fold.split(feature_vector,labels):
-            features_train, labels_train = Fraud.resample_smote2(feature_vector[train], labels[train])
+            if use_smote:
+                features_train, labels_train = Fraud.resample_smote2(feature_vector[train], labels[train])
+            else:
+                features_train, labels_train = feature_vector[train], labels[train]
             features_test, labels_test = feature_vector[test], labels[test]
 
             # Print distribution of the split
@@ -252,7 +255,7 @@ class Fraud:
         print("\tFinished!!")
 
         print("Building classifier and apply SMOTE")
-        Fraud.evaluate(pca_features, labels_list, "knn", {"k":3})
+        Fraud.evaluate(pca_features, labels_list, "knn", {"k":3}, use_smote=True)
         print("\tFinished!!")
 
 
