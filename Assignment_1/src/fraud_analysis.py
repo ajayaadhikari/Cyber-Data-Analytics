@@ -1,6 +1,8 @@
 from __future__ import division
 from imblearn.over_sampling import SMOTE
 from sklearn.model_selection import KFold
+from sklearn.model_selection import StratifiedKFold
+
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn import decomposition
 import pandas as pd
@@ -62,11 +64,11 @@ class Fraud:
     def get_selected_features(self, feature_list):
         return self.df[feature_list]
 
-    def split_to_train_test(self, perc):
-        number_of_records = self.df.shape[0]
-        train_set = self.df.iloc[:int(number_of_records * perc)]
-        test_set = self.df.iloc[int(number_of_records * perc):]
-        return train_set, test_set
+    # def split_to_train_test(self, perc):
+    #     number_of_records = self.df.shape[0]
+    #     train_set = self.df.iloc[:int(number_of_records * perc)]
+    #     test_set = self.df.iloc[int(number_of_records * perc):]
+    #     return train_set, test_set
 
     # Output format: {"US": 112, ...}
     def total_per_country(self):
@@ -177,7 +179,7 @@ class Fraud:
     def evaluate_knn(feature_vector, labels, k):
         unique, counts = np.unique(labels, return_counts=True)
         print(dict(zip(unique, counts)))
-        k_fold = KFold(n_splits=4)
+        k_fold = StratifiedKFold(n_splits=10)
         real_labels = []
         predicted_labels = []
         print(len(labels))
@@ -232,11 +234,11 @@ class Fraud:
         features_without_labels = list(dummies_df)
         features_without_labels.remove(label)
         features_list, labels_list = self.get_records_and_labels(dummies_df, features_without_labels)
-        pca = decomposition.PCA(n_components=15)
+        pca = decomposition.PCA(n_components=30)
         pca_features = pca.fit_transform(features_list)
         print("\tFinished!!")
 
-        print("Building classifier")
+        print("Building classifier and apply SMOTE")
         Fraud.evaluate_knn(pca_features, labels_list, 3)
         print("\tFinished!!")
 
@@ -256,14 +258,14 @@ class Fraud:
 trans_obj = Fraud()
 
 # Selection of specified features (returns dataframe)
-trans_sel_features = Fraud()
-trans_sel_features.df = trans_obj.get_selected_features(selected_features)
+#trans_sel_features = Fraud()
+#trans_sel_features.df = trans_obj.get_selected_features(selected_features)
 
-print trans_sel_features.df.shape
+#print trans_sel_features.df.shape
 
 # convertion of features for SMOTE
-trans_for_SMT = Fraud()
-trans_for_SMT.df = pd.get_dummies(trans_sel_features.df, columns=["txvariantcode","issuercountrycode", "shopperinteraction"])
+#trans_for_SMT = Fraud()
+#trans_for_SMT.df = pd.get_dummies(trans_sel_features.df, columns=["txvariantcode","issuercountrycode", "shopperinteraction"])
 
 
 # sort dataset by date
@@ -271,16 +273,16 @@ trans_for_SMT.df = pd.get_dummies(trans_sel_features.df, columns=["txvariantcode
 #trans_for_SMT.df.sort_values(by="creationdate")
 
 # remove rows with missed values
-trans_for_SMT.df = trans_for_SMT.df.dropna(axis=0, how='any')
+#trans_for_SMT.df = trans_for_SMT.df.dropna(axis=0, how='any')
 
 # split dataset to train and test set
 # IMPORTANT: smote only to training set !!
 # Take into account date ordering
 
 
-features_without_labels = list(trans_for_SMT.df)
-features_without_labels.remove(label)
-features_list, labels_list = trans_for_SMT.get_records_and_labels(features_without_labels)
+# features_without_labels = list(trans_for_SMT.df)
+# features_without_labels.remove(label)
+# features_list, labels_list = trans_for_SMT.get_records_and_labels(features_without_labels)
 
 #X_train, X_test, y_train, y_test = train_test_split(features_list, labels_list, test_size=0.55,random_state=42)
 
@@ -295,8 +297,8 @@ features_list, labels_list = trans_for_SMT.get_records_and_labels(features_witho
 
 # PCA
 #print X_train
-pca = decomposition.PCA(n_components=15)
-pca_features = pca.fit_transform(features_list)
+#pca = decomposition.PCA(n_components=15)
+#pca_features = pca.fit_transform(features_list)
 #X_test = pca.transform(X_test)
 
 
@@ -317,7 +319,7 @@ pca_features = pca.fit_transform(features_list)
 #neigh = KNeighborsClassifier(n_neighbors=4)
 #neigh.fit(X_train, y_train)
 #print neigh.score(X_test, y_test)
-y_predict = Fraud.evaluate_knn(pca_features, labels_list, 3)
+#y_predict = Fraud.evaluate_knn(pca_features, labels_list, 3)
     #neigh.predict(X_test)
 
 
@@ -326,10 +328,10 @@ y_predict = Fraud.evaluate_knn(pca_features, labels_list, 3)
 
 
 #filter the dataframe per simple_journal category
-chargebacks_obj = Fraud()
-chargebacks_obj.df = chargebacks_obj.filter_records("Chargeback")
-settled_obj = Fraud()
-settled_obj.df = settled_obj.filter_records("Settled")
+# chargebacks_obj = Fraud()
+# chargebacks_obj.df = chargebacks_obj.filter_records("Chargeback")
+# settled_obj = Fraud()
+# settled_obj.df = settled_obj.filter_records("Settled")
 #refused_obj = Fraud()
 #refused_obj.df = refused_obj.filter_records("Refused")
 
