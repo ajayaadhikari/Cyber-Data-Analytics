@@ -33,10 +33,6 @@ selected_dummy_features = [ "issuercountrycode", "txvariantcode", "card_issuer_i
                                  "cardverificationcodesupplied", "cvcresponsecode", "accountcode",
                                 "creationdate_hour", "creationdate_dayofweek",'creationdate_month', 'creationdate_dayofmonth']
 
-    #[ "txvariantcode", "amount", "shopperinteraction", "cardverificationcodesupplied",
-    #                 "cvcresponsecode", "simple_journal", "creationdate_hour", "creationdate_dayofweek",
-    #                  "issuercountrycode",'creationdate_month','creationdate_dayofmonth']
-#"issuercountrycode"
 label = "simple_journal"
 features_for_convertion = ["issuercountrycode", "txvariantcode", "shopperinteraction"]
 
@@ -57,7 +53,7 @@ class Fraud:
         self.df.rename(columns={'bin': 'card_issuer_identifier'}, inplace=True)
         # Delete rows with null values for card_issuer_identifier
         self.df = self.df[pd.notnull(self.df.card_issuer_identifier)]
-        #self.df = self.df[self.df.simple_journal != "Refused"]
+        # self.df = self.df[self.df.simple_journal != "Refused"]
 
         # Change data types of some columns
         #self.df["bookingdate"].apply(self.string_to_timestamp)
@@ -69,8 +65,6 @@ class Fraud:
         self.df['creationdate_dayofmonth'] = self.df['creationdate'].map(lambda x: x.day)
         self.df['creationdate_month'] = self.df['creationdate'].map(lambda x: x.month)
         print("\tFinished!!")
-        #self.df["simple_journal"].apply(lambda y: 0 if y == "Settled" else 1)
-
 
     @staticmethod
     def get_records_and_labels(df, columns):
@@ -80,13 +74,7 @@ class Fraud:
     def get_selected_features(self, feature_list):
         return self.df[feature_list]
 
-    # def split_to_train_test(self, perc):
-    #     number_of_records = self.df.shape[0]
-    #     train_set = self.df.iloc[:int(number_of_records * perc)]
-    #     test_set = self.df.iloc[int(number_of_records * perc):]
-    #     return train_set, test_set
-
-    # # Output format: {"US": 112, ...}
+    # Output format: {"US": 112, ...}
     def total_per_country(self):
          result = self.df["issuercountrycode"].value_counts().to_dict()
          #result.to_csv(path=path,index_label=["issuercountrycode","transaction_count"],index=True)
@@ -152,7 +140,7 @@ class Fraud:
     # The minority class gets oversampled to balance with the majority class
     # Output format: X_resampled, y_resampled
     def resample_smote(X, y):
-        sm = SMOTE(ratio=0.008)
+        sm = SMOTE()
         return sm.fit_sample(X, y)
 
     @staticmethod
@@ -178,9 +166,9 @@ class Fraud:
         keys = [x[0] for x in sorted_D]
         plt.bar(range(len(sorted_D)), values, align='center',alpha=0.4, color = 'red')
         plt.xticks(range(len(sorted_D)), keys)
-        plt.xlabel('xlabel', fontsize=18)
-        plt.ylabel('ylabel', fontsize=16)
-        plt.title(figure_title)
+        #plt.xlabel('xlabel', fontsize=18)
+        plt.ylabel('Number of Transactions', fontsize=20)
+        #plt.title(figure_title)
         plt.show()
 
     @staticmethod
@@ -328,8 +316,8 @@ class Fraud:
         myfile.close()
 
     @staticmethod
-    def plot_roc(classifier_name, predicted_labels, probability_labels):
-        false_positive_rate, true_positive_rate, _ = roc_curve(predicted_labels, probability_labels, pos_label=1)
+    def plot_roc(classifier_name, real_labels, probability_labels):
+        false_positive_rate, true_positive_rate, _ = roc_curve(real_labels, probability_labels, pos_label=1)
         plt.figure()
         lw = 2
         plt.plot(false_positive_rate, true_positive_rate, color='darkorange',
@@ -401,6 +389,7 @@ class Fraud:
             # Build classifier using training set
             classifier = Fraud.get_classifier(classifier_name, features_train, labels_train, variables)
 
+
             # Save the labels
             real_labels.extend(labels_test)
             predicted_labels.extend(classifier.predict(features_test))
@@ -409,15 +398,11 @@ class Fraud:
         print("\tFinished")
 
         # Get the evaluation metrics
-        get_probability_labels = lambda container: map(lambda index: container[index][1], range(len(container)))
-        print(probability_labels[0:15])
-        probability_labels = get_probability_labels(probability_labels)
-        print(probability_labels[0:15])
-
+        probability_labels = np.array(probability_labels)[:, 1]
         resulting_metrics = Fraud.get_evaluation_metrics(real_labels, predicted_labels, probability_labels)
 
         print("Plot the ROC curve")
-        Fraud.plot_roc(classifier_name, predicted_labels, probability_labels)
+        Fraud.plot_roc(classifier_name, real_labels, probability_labels)
         print("\tFinished")
 
         print("Writing to file")
@@ -425,21 +410,6 @@ class Fraud:
         print("\tFinished!")
 
         return resulting_metrics
-
-
-   # Run classifiers with different parameters
-    @staticmethod
-    def evaluate_knn(feature_vector, labels, smote):
-        for i in range(4, 6):
-            Fraud.evaluate(feature_vector, labels, "knn", {"k": i}, use_smote=smote)
-    @staticmethod
-    def evaluate_rf(feature_vector, labels, smote):
-        for i in range(10, 20, 2):
-            Fraud.evaluate(feature_vector, labels, "rf", {"n":i}, use_smote=smote)
-
-    @staticmethod
-    def evaluate_gb(feature_vector, labels, smote):
-        pass
 
     @staticmethod
     def reduce_dimensionality(feature_vector, labels, method):
@@ -451,6 +421,17 @@ class Fraud:
             lda = LinearDiscriminantAnalysis(n_components=50)
             resulting_features = lda.fit_transform(feature_vector, labels)
         return resulting_features
+
+
+   # Run classifiers with different parameters
+    @staticmethod
+    def evaluate_knn(feature_vector, labels, smote):
+        for i in range(4, 6):
+            Fraud.evaluate(feature_vector, labels, "knn", {"k": i}, use_smote=smote)
+    @staticmethod
+    def evaluate_rf(feature_vector, labels, smote):
+        for i in range(10, 20, 2):
+            Fraud.evaluate(feature_vector, labels, "rf", {"n":i}, use_smote=smote)
 
     @staticmethod
     def hot_encoder(features_df, columns):
@@ -477,8 +458,6 @@ class Fraud:
             features_without_labels = list(filtered_df)
             features_without_labels.remove(label)
             resulting_feature_vector, labels_list = Fraud.get_records_and_labels(filtered_df, features_without_labels)
-            #resulting_feature_vector = Fraud.normalize_all_columns(resulting_feature_vector)
-
             print len(resulting_feature_vector[3])
 
         else:
@@ -487,12 +466,12 @@ class Fraud:
             filtered_df = filtered_df.dropna(axis=0, how='any')
             filtered_df = pd.get_dummies(filtered_df,
                                    columns=["txvariantcode", "shoppercountrycode", "shopperinteraction","issuercountrycode", "currencycode", "accountcode"])
-            #, "issuercountrycode"
             print("Reducing dimensionality.")
             features_without_labels = list(filtered_df)
             features_without_labels.remove(label)
             features_list, labels_list = Fraud.get_records_and_labels(filtered_df, features_without_labels)
             resulting_feature_vector = Fraud.reduce_dimensionality(features_list, labels_list, "lda")
+            #uncomment line if you don't want dimensionality reduction
             #resulting_feature_vector = features_list
             print("\tFinished!!")
 
@@ -502,15 +481,12 @@ class Fraud:
 
         print("Build KNN classifier")
         #Fraud.evaluate(resulting_feature_vector, labels_list, "knn", {"k":4}, use_smote=smote)
-        #Fraud.evaluate_knn(resulting_feature_vector, labels_list, smote)
 
         print("Build Random Forest classifier")
-        #for n in range(10,100,10):
-        #    Fraud.evaluate(resulting_feature_vector, labels_list, "rf", {"n":n}, use_smote=smote)
-        #Fraud.evaluate_rf(pca_features, labels_list)
+        #Fraud.evaluate(resulting_feature_vector, labels_list, "rf", {"n":90}, use_smote=smote)
 
         print("Build Decision Tree classifier")
-        #Fraud.evaluate(resulting_feature_vector, labels_list, "dt", {}, use_smote=False)
+        #Fraud.evaluate(resulting_feature_vector, labels_list, "dt", {}, use_smote=smote)
 
         print("Build Naive Bayes classifier")
         #Fraud.evaluate(resulting_feature_vector, labels_list, "nb", {}, use_smote=smote)
@@ -519,16 +495,14 @@ class Fraud:
         #Fraud.evaluate(resulting_feature_vector, labels_list, "lda", {}, use_smote=smote)
 
         print("Build gradient boost classifier")
-        # for estimators in[50, 100, 150, 200]:
-        #     for learning in [0.04, 0.08, 0.12, 0.2]:
-        #         for loss in ["deviance", "exponential"]:
+        # set parameters
         estimators = 100
-        loss = "deviance"
-        learning = 0.08
+        loss = "exponential"
+        learning = 0.1
         params = {'n_estimators': estimators, 'max_depth': 3, 'min_samples_split': 2,
                     'learning_rate': learning, 'loss': loss}
         Fraud.evaluate(resulting_feature_vector, labels_list, "gb", params, use_smote=False)
-        #
+
         print("Build majority voting classifier")
         #mv_params = {"knn":KNeighborsClassifier(n_neighbors=4), "nb": GaussianNB(), "lda": LinearDiscriminantAnalysis(),
         #                "rf": RandomForestClassifier(n_jobs=5), "gb": GradientBoostingClassifier(**params),
@@ -541,8 +515,8 @@ class Fraud:
 trans_obj = Fraud()
 
 # RUN CLASSIFIERS
-#trans_obj.run()
+trans_obj.run()
 
 # RUN VISUALIZATIONS
-Fraud.get_plots()
+#Fraud.get_plots()
 
