@@ -6,6 +6,40 @@ import operator
 import os
 import scipy.stats as stats
 
+#################################################################################
+############################## Read data from file ##############################
+#################################################################################
+attack_data_path = os.path.join('..', 'data', 'SWaT_Dataset_Attack_v0.csv')
+normal_data_path = os.path.join('..', 'data', 'SWaT_Dataset_Normal_v0.csv')
+
+converters = {'Normal/Attack': lambda x: "Attack" if x == "A ttack" else x}
+attack_data = pd.read_csv(attack_data_path, skip_blank_lines=True, skiprows=1, converters=converters)
+normal_data = pd.read_csv(normal_data_path, skip_blank_lines=True, skiprows=1)
+
+#################################################################################
+############################## Pre-processing ###################################
+#################################################################################
+
+# Remove the whitespaces from the column names
+strip = lambda container: map(lambda element: element.strip(), container)
+attack_data.columns = strip(attack_data.columns.tolist())
+normal_data.columns = strip(normal_data.columns.tolist())
+
+# Create training and testing dataframes
+first_attack_row_index = -1
+for index, row in attack_data.iterrows():
+    if row['Normal/Attack'] == "Attack":
+        first_attack_row_index = index
+        break
+
+df_before_attack = attack_data.iloc[:first_attack_row_index, :]
+training_set = pd.concat([normal_data, df_before_attack])
+testing_set = attack_data.iloc[first_attack_row_index:, :]
+
+#################################################################################
+############################ PCA-based anomaly detection ########################
+#################################################################################
+
 
 def correlation_matrix(df):
     from matplotlib import pyplot as plt
@@ -24,21 +58,8 @@ def correlation_matrix(df):
     fig.colorbar(cax, ticks=[.75,.8,.85,.90,.95,1])
     plt.show()
 
-
-attack_data_path = os.path.join('..', 'data', 'SWaT_Dataset_Attack_v0.csv')
-normal_data_path = os.path.join('..', 'data', 'SWaT_Dataset_Normal_v0.csv')
-
-attack_data = pd.read_csv(attack_data_path, skip_blank_lines=True, skiprows=1)
-normal_data = pd.read_csv(normal_data_path, skip_blank_lines=True, skiprows=1)
-
-print attack_data.shape
-print normal_data.shape
-
-print attack_data['Normal/Attack'].value_counts().to_dict()
-print normal_data['Normal/Attack'].value_counts().to_dict()
-
-correlation_m =  attack_data.corr(method='pearson')
-correlation_matrix(correlation_m)
+#correlation_m =  attack_data.corr(method='pearson')
+#correlation_matrix(correlation_m)
 
 #print len(correlation_matrix)
 #print correlation_matrix
