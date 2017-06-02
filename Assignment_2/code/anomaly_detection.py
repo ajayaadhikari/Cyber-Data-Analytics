@@ -1,40 +1,63 @@
 import pandas as pd
-import numpy as np
-import time
-import matplotlib.pyplot as plt
-import operator
 import os
-import scipy.stats as stats
-
 #################################################################################
 ############################## Read data from file ##############################
 #################################################################################
 attack_data_path = os.path.join('..', 'data', 'SWaT_Dataset_Attack_v0.csv')
 normal_data_path = os.path.join('..', 'data', 'SWaT_Dataset_Normal_v0.csv')
 
-converters = {'Normal/Attack': lambda x: "Attack" if x == "A ttack" else x}
-attack_data = pd.read_csv(attack_data_path, skip_blank_lines=True, skiprows=1, converters=converters)
-normal_data = pd.read_csv(normal_data_path, skip_blank_lines=True, skiprows=1)
+def read_from_file():
+    converters = {'Normal/Attack': lambda x: "Attack" if x == "A ttack" else x}
+    attack_data = pd.read_csv(attack_data_path, skip_blank_lines=True, skiprows=1, converters=converters)
+    normal_data = pd.read_csv(normal_data_path, skip_blank_lines=True, skiprows=1)
+    return attack_data, normal_data
 
 #################################################################################
 ############################## Pre-processing ###################################
 #################################################################################
+training_path = os.path.join('..', 'data', 'training.csv')
+testing_path = os.path.join('..', 'data', 'testing.csv')
 
-# Remove the whitespaces from the column names
-strip = lambda container: map(lambda element: element.strip(), container)
-attack_data.columns = strip(attack_data.columns.tolist())
-normal_data.columns = strip(normal_data.columns.tolist())
+def pre_process(attack_df, normal_df):
+    # Remove the whitespaces from the column names
+    strip = lambda container: map(lambda element: element.strip(), container)
+    attack_df.columns = strip(attack_df.columns.tolist())
+    normal_df.columns = strip(normal_df.columns.tolist())
 
-# Create training and testing dataframes
-first_attack_row_index = -1
-for index, row in attack_data.iterrows():
-    if row['Normal/Attack'] == "Attack":
-        first_attack_row_index = index
-        break
+    # Create training and testing dataframes
+    first_attack_row_index = -1
+    for index, row in attack_df.iterrows():
+        if row['Normal/Attack'] == "Attack":
+            first_attack_row_index = index
+            break
 
-df_before_attack = attack_data.iloc[:first_attack_row_index, :]
-training_set = pd.concat([normal_data, df_before_attack])
-testing_set = attack_data.iloc[first_attack_row_index:, :]
+    df_before_attack = attack_df.iloc[:first_attack_row_index, :]
+    training_set = pd.concat([normal_df, df_before_attack])
+    testing_set = attack_df.iloc[first_attack_row_index:, :]
+    return training_set,testing_set
+
+
+def write_to_file(training_set, testing_set):
+    training_set.to_csv(path_or_buf=training_path, index=False)
+    testing_set.to_csv(path_or_buf=testing_path, index=False)
+
+
+def get_training_testing_data():
+    if os.path.isfile(training_path) and os.path.isfile(testing_path):
+        training_data = pd.read_csv(training_path, skip_blank_lines=True)
+        testing_data = pd.read_csv(testing_path, skip_blank_lines=True)
+    else:
+        attack_df, normal_df = read_from_file()
+        training_data, testing_data = pre_process(attack_df, normal_df)
+        write_to_file(training_data, testing_data)
+
+    return training_data, testing_data
+
+
+
+training_data, testing_data = get_training_testing_data()
+print(training_data.shape)
+print(testing_data.shape)
 
 #################################################################################
 ############################ PCA-based anomaly detection ########################
