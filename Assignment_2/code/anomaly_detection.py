@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+import matplotlib.pyplot as plt
 #################################################################################
 ############################## Read data from file ##############################
 #################################################################################
@@ -17,6 +18,13 @@ def read_from_file():
 #################################################################################
 training_path = os.path.join('..', 'data', 'training.csv')
 testing_path = os.path.join('..', 'data', 'testing.csv')
+
+def plot_axis(df, column_name, range_time):
+    values = df[column_name].tolist()[range_time[0]:range_time[1]]
+    xmin, xmax, ymin, ymax = 0, len(values), min(values), max(values)
+    plt.plot(range(xmax), values, 'ro')
+    plt.axis([xmin, xmax, ymin, ymax])
+    plt.show()
 
 def pre_process(attack_df, normal_df):
     # Remove the whitespaces from the column names
@@ -43,9 +51,12 @@ def write_to_file(training_set, testing_set):
 
 
 def get_training_testing_data():
+    # If training and testing csv files already exists read from them
     if os.path.isfile(training_path) and os.path.isfile(testing_path):
         training_data = pd.read_csv(training_path, skip_blank_lines=True)
         testing_data = pd.read_csv(testing_path, skip_blank_lines=True)
+    # Else read from the original data-set and pre-process it
+    # Write the resulting training and testing datasets to file to avoid recomputation in the future
     else:
         attack_df, normal_df = read_from_file()
         training_data, testing_data = pre_process(attack_df, normal_df)
@@ -54,10 +65,8 @@ def get_training_testing_data():
     return training_data, testing_data
 
 
-
 training_data, testing_data = get_training_testing_data()
-print(training_data.shape)
-print(testing_data.shape)
+plot_axis(training_data, "MV302", (0,300))
 
 #################################################################################
 ############################ PCA-based anomaly detection ########################
