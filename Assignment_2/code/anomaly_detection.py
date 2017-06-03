@@ -14,6 +14,7 @@ normal_data_path = os.path.join('..', 'data', 'SWaT_Dataset_Normal_v0.csv')
 def read_from_file():
     print("Reading Attack and Normal dataset from file.")
     converters = {'Normal/Attack': lambda x: "Attack" if x == "A ttack" else x}
+    
     attack_data = pd.read_csv(attack_data_path, skip_blank_lines=True, skiprows=1, converters=converters)
     normal_data = pd.read_csv(normal_data_path, skip_blank_lines=True, skiprows=1)
     print("\t\tDone.")
@@ -74,7 +75,8 @@ def get_training_testing_data():
     else:
         attack_df, normal_df = read_from_file()
         training_data, testing_data = pre_process(attack_df, normal_df)
-        write_to_file(training_set, testing_set )
+        write_to_file(training_data, testing_data)
+        # you had written 'training_set', 'testing_set'
     return training_data, testing_data
 
 def nomalize_training_set(training_set):
@@ -106,6 +108,32 @@ def normalize_testing_set(testing_set):
     _, sampled_testing_set, _, sampled_testing_labels = train_test_split(testing_set.values, testing_labels, stratify=testing_labels, test_size=0.1)
     return normalize(sampled_testing_set), sampled_testing_labels
 
+
+def get_sampled_and_normalized_dataset_arma(seconds):
+    # Get the training and testing sets
+    training_set, testing_set = get_training_testing_data()
+
+    print("Removing actuators' signals")
+    columns = list(training_set)
+    # for all columns except the label
+    # remove actuators: values '1', '2'
+    for column in columns[:-1]:
+        if len(training_set[column].unique()) < 3:
+            del training_set[column]
+            del testing_set[column]
+
+    print("Before sampling (training set): %s records." % (training_set.shape,))
+    print("Before sampling (testing set): %s records." % (testing_set.shape,))
+    print(list(training_set))
+    training_set_sampled = training_set.groupby(np.arange(len(training_set)) // seconds).mean()
+    testing_set_sampled = testing_set.groupby(np.arange(len(testing_set)) // seconds).mean()
+
+    print("After sampling (training set): %s records." % (training_set_sampled.shape,))
+    print("After sampling (testing set): %s records." % (testing_set_sampled.shape,))
+    print list(testing_set)
+    return training_set_sampled, testing_set_sampled
+
+
 #################################################################################
 ############################ Familiarization task ###############################
 #################################################################################
@@ -127,8 +155,8 @@ def correlation_matrix(df):
     fig.colorbar(cax, ticks=[.75, .8, .85, .90, .95, 1])
     plt.show()
 
-training_data, testing_data = get_training_testing_data()
-plot_axis(training_data, "LIT101", (0, 350))
+#training_data, testing_data = get_training_testing_data()
+#plot_axis(training_data, "LIT101", (0, 350))
 
 #print len(correlation_matrix)
 #print correlation_matrix
@@ -205,16 +233,21 @@ def evaluate_pca_anomoly_dectection(training_data, testing_data, testing_labels)
     print(min(residuals_testing_attack),max(residuals_testing_attack),len(residuals_testing_attack))
     print(min(residuals_training),max(residuals_training),len(residuals_training))
 
-    
 
 
+#######
+# PCA #
+#######
+#training_set, testing_set, testing_labels = get_sampled_and_normalized_dataset()
+3#evaluate_pca_anomoly_dectection(training_set, testing_set, testing_labels)
 
-training_set, testing_set, testing_labels = get_sampled_and_normalized_dataset()
-evaluate_pca_anomoly_dectection(training_set, testing_set, testing_labels)
 
+########
+# ARMA #
+########
 
-
-
-
+training_set, testing_set = get_sampled_and_normalized_dataset_arma(10)
+for i in training_set.iloc[:,-1].round().unique():
+    print i
 
 
