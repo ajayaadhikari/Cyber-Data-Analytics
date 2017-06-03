@@ -82,7 +82,7 @@ def nomalize_training_set(training_set):
     return normalize(training_set.values)
 
 def normalize(np_dataset):
-    return np_dataset - np_dataset.mean(axis=0)
+    return (np_dataset - np_dataset.mean(axis=0))/(np_dataset.max(axis=0)-np_dataset.min(axis=0)+0.00000000000001)
 
 
 def get_sampled_and_normalized_dataset():
