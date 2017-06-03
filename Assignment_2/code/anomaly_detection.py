@@ -13,7 +13,7 @@ normal_data_path = os.path.join('..', 'data', 'SWaT_Dataset_Normal_v0.csv')
 
 def read_from_file():
     print("Reading Attack and Normal dataset from file.")
-    converters = {'Normal/Attack': lambda x: 1 if x == "A ttack" else 0}
+    converters = {'Normal/Attack': lambda x: 1 if (x == "A ttack" or x == "Attack") else 0}
     #converters = {'Normal/Attack': lambda x: "Attack" if x == "A ttack" else x}
 
     attack_data = pd.read_csv(attack_data_path, skip_blank_lines=True, skiprows=1, converters=converters)
@@ -45,24 +45,37 @@ def pre_process(attack_df, normal_df):
 
     # Create training and testing data frames
     first_attack_row_index = -1
+    print attack_df.iloc[:,-1].unique()
     for index, row in attack_df.iterrows():
-        if row['Normal/Attack'] == "Attack":
+        #change "attack to 1"
+        if row['Normal/Attack'] == 1:
             first_attack_row_index = index
+            print "ok"
             break
-
+    print attack_df.iloc[1754,-1]
+    print first_attack_row_index
     df_before_attack = attack_df.iloc[:first_attack_row_index, :]
     training_set = pd.concat([normal_df, df_before_attack])
     testing_set = attack_df.iloc[first_attack_row_index:, :]
+    print testing_set.shape
     print("\t\tDone.")
     return training_set, testing_set
 
 
 def write_to_file(training_set, testing_set):
-    print("Writing training and testingset to file to avoid recomputation.")
+    print("Writing training and testing set to file to avoid recomputation.")
     training_set.to_csv(path_or_buf=training_path, index=False)
     testing_set.to_csv(path_or_buf=testing_path, index=False)
     print("\t\tDone.")
 
+
+def write_to_file_arma(training_set, testing_set):
+    training_path = os.path.join('..', 'data', 'training_arma.csv')
+    testing_path = os.path.join('..', 'data', 'testing_arma.csv')
+    print("Writing training and testing set to file to avoid recomputation.")
+    training_set.to_csv(path_or_buf=training_path, index=False)
+    testing_set.to_csv(path_or_buf=testing_path, index=False)
+    print("\t\tDone.")
 
 def get_training_testing_data():
     # If training and testing csv files already exists read from them
@@ -128,15 +141,12 @@ def get_sampled_and_normalized_dataset_arma(seconds):
     print(list(training_set))
 
     training_set_sampled = training_set.groupby(np.arange(len(training_set)) // seconds).mean()
-    testing_set_sampled = testing_set.groupby(np.arange(len(testing_set)) // seconds).mean()
-
     training_set_sampled.iloc[:, -1] = training_set_sampled.iloc[:, -1].round()
-    testing_set_sampled.iloc[:, -1] = testing_set_sampled.iloc[:, -1].round()
 
     print("After sampling (training set): %s records." % (training_set_sampled.shape,))
-    print("After sampling (testing set): %s records." % (testing_set_sampled.shape,))
+    print("After sampling (testing set): %s records." % (testing_set.shape,))
     print list(testing_set)
-    return training_set_sampled, testing_set_sampled
+    return training_set_sampled, testing_set
 
 
 #################################################################################
@@ -251,8 +261,9 @@ def evaluate_pca_anomoly_dectection(training_data, testing_data, testing_labels)
 # ARMA #
 ########
 
-training_set, testing_set = get_sampled_and_normalized_dataset_arma(10)
-for i in training_set.iloc[:,-1].unique():
-    print i
+training_set, testing_set = get_sampled_and_normalized_dataset_arma(30)
+print training_set.shape
+print testing_set.shape
+write_to_file_arma(training_set, testing_set)
 
 
