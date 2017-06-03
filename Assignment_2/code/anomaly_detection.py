@@ -126,9 +126,12 @@ def get_sampled_and_normalized_dataset_arma(seconds):
     print("Before sampling (training set): %s records." % (training_set.shape,))
     print("Before sampling (testing set): %s records." % (testing_set.shape,))
     print(list(training_set))
-    print training_set.iloc[:, -1].unique()
+
     training_set_sampled = training_set.groupby(np.arange(len(training_set)) // seconds).mean()
     testing_set_sampled = testing_set.groupby(np.arange(len(testing_set)) // seconds).mean()
+
+    training_set_sampled.iloc[:, -1] = training_set_sampled.iloc[:, -1].round()
+    testing_set_sampled.iloc[:, -1] = testing_set_sampled.iloc[:, -1].round()
 
     print("After sampling (training set): %s records." % (training_set_sampled.shape,))
     print("After sampling (testing set): %s records." % (testing_set_sampled.shape,))
@@ -249,8 +252,7 @@ def evaluate_pca_anomoly_dectection(training_data, testing_data, testing_labels)
 ########
 
 training_set, testing_set = get_sampled_and_normalized_dataset_arma(10)
-print training_set.iloc[:,-1].unique()
-for i in training_set.iloc[:,-1].round().unique():
+for i in training_set.iloc[:,-1].unique():
     print i
 
 
