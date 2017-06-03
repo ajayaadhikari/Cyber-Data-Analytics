@@ -22,7 +22,7 @@ testing_path = os.path.join('..', 'data', 'testing.csv')
 def plot_axis(df, column_name, range_time):
     values = df[column_name].tolist()[range_time[0]:range_time[1]]
     xmin, xmax, ymin, ymax = 0, len(values), min(values), max(values)
-    plt.plot(range(xmax), values, 'ro')
+    plt.plot(range(xmax), values, 'ro--')
     plt.axis([xmin, xmax, ymin, ymax])
     plt.show()
 
@@ -65,8 +65,6 @@ def get_training_testing_data():
     return training_data, testing_data
 
 
-training_data, testing_data = get_training_testing_data()
-plot_axis(training_data, "MV302", (0,300))
 
 #################################################################################
 ############################ PCA-based anomaly detection ########################
@@ -89,6 +87,9 @@ def correlation_matrix(df):
     # Add colorbar, make sure to specify tick locations to match desired ticklabels
     fig.colorbar(cax, ticks=[.75,.8,.85,.90,.95,1])
     plt.show()
+
+training_data, testing_data = get_training_testing_data()
+plot_axis(training_data, "LIT101", (0, 350))
 
 #correlation_m =  attack_data.corr(method='pearson')
 #correlation_matrix(correlation_m)

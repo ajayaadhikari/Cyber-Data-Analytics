@@ -7,7 +7,6 @@ setwd("/home/bill/github_repos/cda/Cyber-Data-Analytics/Assignment_2");
 # Read the dataset
 train_data <- read.csv('./data/training.csv',header = TRUE)
 test_data <- read.csv('./data/testing.csv',header = TRUE)
-attach(train_data)
 
 train_ts <- ts(train_data$LIT101, frequency = 86400, start = 1)
 plot.ts(train_ts)
