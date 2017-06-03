@@ -13,10 +13,11 @@ normal_data_path = os.path.join('..', 'data', 'SWaT_Dataset_Normal_v0.csv')
 
 def read_from_file():
     print("Reading Attack and Normal dataset from file.")
-    converters = {'Normal/Attack': lambda x: "Attack" if x == "A ttack" else x}
-    
+    converters = {'Normal/Attack': lambda x: 1 if x == "A ttack" else 0}
+    #converters = {'Normal/Attack': lambda x: "Attack" if x == "A ttack" else x}
+
     attack_data = pd.read_csv(attack_data_path, skip_blank_lines=True, skiprows=1, converters=converters)
-    normal_data = pd.read_csv(normal_data_path, skip_blank_lines=True, skiprows=1)
+    normal_data = pd.read_csv(normal_data_path, skip_blank_lines=True, skiprows=1, converters=converters)
     print("\t\tDone.")
     return attack_data, normal_data
 
@@ -125,6 +126,7 @@ def get_sampled_and_normalized_dataset_arma(seconds):
     print("Before sampling (training set): %s records." % (training_set.shape,))
     print("Before sampling (testing set): %s records." % (testing_set.shape,))
     print(list(training_set))
+    print training_set.iloc[:, -1].unique()
     training_set_sampled = training_set.groupby(np.arange(len(training_set)) // seconds).mean()
     testing_set_sampled = testing_set.groupby(np.arange(len(testing_set)) // seconds).mean()
 
@@ -247,6 +249,7 @@ def evaluate_pca_anomoly_dectection(training_data, testing_data, testing_labels)
 ########
 
 training_set, testing_set = get_sampled_and_normalized_dataset_arma(10)
+print training_set.iloc[:,-1].unique()
 for i in training_set.iloc[:,-1].round().unique():
     print i
 
