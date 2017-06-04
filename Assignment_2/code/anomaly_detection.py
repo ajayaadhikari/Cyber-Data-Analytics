@@ -135,18 +135,28 @@ def get_sampled_and_normalized_dataset_arma(seconds):
         if len(training_set[column].unique()) < 3:
             del training_set[column]
             del testing_set[column]
+    if seconds == 1:
+        training_set_sampled = training_set
+        testing_set_sampled = testing_set
+    else:
+        print("Before sampling (training set): %s records." % (training_set.shape,))
+        print("Before sampling (testing set): %s records." % (testing_set.shape,))
+        print(list(training_set))
 
-    print("Before sampling (training set): %s records." % (training_set.shape,))
-    print("Before sampling (testing set): %s records." % (testing_set.shape,))
-    print(list(training_set))
+        training_set_sampled = training_set.groupby(np.arange(len(training_set)) // seconds).mean()
 
-    training_set_sampled = training_set.groupby(np.arange(len(training_set)) // seconds).mean()
-    training_set_sampled.iloc[:, -1] = training_set_sampled.iloc[:, -1].round()
+        training_set_sampled.ix[training_set_sampled["Normal/Attack"] > 0, 'Normal/Attack'] = 1
 
-    print("After sampling (training set): %s records." % (training_set_sampled.shape,))
-    print("After sampling (testing set): %s records." % (testing_set.shape,))
-    print list(testing_set)
-    return training_set_sampled, testing_set
+        #training_set_sampled.iloc[:, -1] = training_set_sampled.iloc[:, -1].round()
+
+        testing_set_sampled = testing_set.groupby(np.arange(len(testing_set)) // seconds).mean()
+        testing_set_sampled.ix[testing_set_sampled["Normal/Attack"] > 0, 'Normal/Attack'] = 1
+
+        #testing_set_sampled.iloc[:, -1] = testing_set_sampled.iloc[:, -1].round()
+
+        print("After sampling (training set): %s records." % (training_set_sampled.shape,))
+        print("After sampling (testing set): %s records." % (testing_set_sampled.shape,))
+    return training_set_sampled, testing_set_sampled
 
 
 #################################################################################
@@ -261,7 +271,8 @@ def evaluate_pca_anomoly_dectection(training_data, testing_data, testing_labels)
 # ARMA #
 ########
 
-training_set, testing_set = get_sampled_and_normalized_dataset_arma(30)
+training_set, testing_set = get_sampled_and_normalized_dataset_arma(900)
+print training_set["Normal/Attack"]
 print training_set.shape
 print testing_set.shape
 write_to_file_arma(training_set, testing_set)
