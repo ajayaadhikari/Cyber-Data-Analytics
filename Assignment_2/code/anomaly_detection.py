@@ -6,7 +6,9 @@ from sklearn.preprocessing import normalize,scale
 from sklearn.decomposition import IncrementalPCA
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix
+from collections import Counter
 #################################################################################
+############################## Read data from file ##############################
 ############################## Read data from file ##############################
 #################################################################################
 attack_data_path = os.path.join('..', 'data', 'SWaT_Dataset_Attack_v0.csv')
@@ -120,6 +122,7 @@ def get_sampled_and_normalized_dataset_pca(training_sampling_seconds_range, test
     training_set = training_set.drop(["Normal/Attack", "Timestamp"], axis=1)
     training_set_sampled = training_set.groupby(np.arange(len(training_set)) // training_sampling_seconds_range).mean()
     training_set_sampled = normalize(training_set_sampled.values)
+
     testing_set_sampled, testing_labels = normalize_and_sample_testing_set(testing_set, testing_sampling_rate)
     return training_set_sampled, testing_set_sampled, testing_labels
 
@@ -139,9 +142,13 @@ def get_sampled_and_normalized_dataset():
 
 def normalize_and_sample_testing_set(testing_set, sampling_rate):
     # Normalize the testing set
-    testing_labels = testing_set["Normal/Attack"].tolist()
-    testing_set = testing_set.drop(["Normal/Attack", "Timestamp"], axis=1)
-    _, sampled_testing_set, _, sampled_testing_labels = train_test_split(testing_set.values, testing_labels, stratify=testing_labels, test_size=sampling_rate)
+    testing_labels = np.array(testing_set["Normal/Attack"].tolist())
+    print(Counter(testing_labels))
+    print(sampling_rate)
+    testing_set.drop(["Normal/Attack", "Timestamp"], axis=1, inplace=True)
+    print(testing_set.shape)
+    _, sampled_testing_set, _, sampled_testing_labels = train_test_split(testing_set.values, testing_labels, test_size=sampling_rate)
+    print(Counter(sampled_testing_labels), sampled_testing_set.shape)
     return normalize(sampled_testing_set), sampled_testing_labels
 
 
@@ -257,6 +264,11 @@ def evaluate_pca_anomoly_dectection(training_data, testing_data, testing_labels)
     for row in training_data:
         SPE = squared_prediction_error(row)
         residuals_training.append(SPE)
+    print(len(residuals_training))
+    plt.plot(range(len(residuals_training)), residuals_training, "r:")
+    plt.show()
+    plt.plot(range(201),residuals_training[0:201])
+    plt.show()
 
     residuals_testing_normal = []
     residuals_testing_attack = []
@@ -267,27 +279,28 @@ def evaluate_pca_anomoly_dectection(training_data, testing_data, testing_labels)
         else:
             residuals_testing_attack.append(SPE)
 
-    results = {"threshold":[], "TP":[], "FP":[], "TN":[], "FN":[]}
-    for i in range(10, 100):
-        threshold = i/float(10)
-        print(threshold)
-        predicted_labels = predict(residuals_testing_normal, threshold) + predict(residuals_testing_attack, threshold)
-        real_labels = [0] * len(residuals_testing_normal) + [1] * len(residuals_testing_attack)
-        cm = confusion_matrix(real_labels, predicted_labels)
-        print(cm)
-        results["threshold"].append(threshold)
-        results["TP"].append(cm[1][1]/float(len(residuals_testing_attack)))
-        results["FP"].append(cm[1][0]/float(len(residuals_testing_attack)))
-        results["TN"].append(cm[0][0]/float(len(residuals_testing_normal)))
-        results["FN"].append(cm[0][1]/float(len(residuals_testing_normal)))
+    #results = {"threshold":[], "TP":[], "FP":[], "TN":[], "FN":[]}
+    #for i in range(10, 100):
+    #    threshold = i/float(10)
+    #    print(threshold)
+    #    predicted_labels = predict(residuals_testing_normal, threshold) + predict(residuals_testing_attack, threshold)
+    #    real_labels = [0] * len(residuals_testing_normal) + [1] * len(residuals_testing_attack)
+    #    cm = confusion_matrix(real_labels, predicted_labels)
+    #    print(cm)
+    #    results["threshold"].append(threshold)
+    #    results["TP"].append(cm[1][1]/float(len(residuals_testing_attack)))
+    #    results["FP"].append(cm[1][0]/float(len(residuals_testing_attack)))
+    #    results["TN"].append(cm[0][0]/float(len(residuals_testing_normal)))
+    #    results["FN"].append(cm[0][1]/float(len(residuals_testing_normal)))
+    #a = input()
+#
+    #plt.plot(results["threshold"], results["TP"], 'r:', results["threshold"], results["TN"], 'b:')
+    #plt.show()
 
-    plt.plot(results["threshold"], results["TP"], 'r:', results["threshold"], results["TN"], 'b:')
-    plt.show()
+    #plt.plot(results["threshold"], results["FP"], 'r:', results["threshold"], results["FN"], 'b:')
+    #plt.show()
 
-    plt.plot(results["threshold"], results["FP"], 'r:', results["threshold"], results["FN"], 'b:')
-    plt.show()
-
-    plt.hist(residuals_training, bins='auto')
+    plt.hist(residuals_training, bins='auto', range=(-0.1,5))
     plt.title("Training set.")
     plt.show()
 
@@ -310,7 +323,7 @@ def evaluate_pca_anomoly_dectection(training_data, testing_data, testing_labels)
 # PCA #
 #######
 #training_set, testing_set, testing_labels = get_sampled_and_normalized_dataset()
-training_set, testing_set, testing_labels = get_sampled_and_normalized_dataset_pca(120, 0.4)
+training_set, testing_set, testing_labels = get_sampled_and_normalized_dataset_pca(120, 0.005)
 evaluate_pca_anomoly_dectection(training_set, testing_set, testing_labels)
 
 
