@@ -64,7 +64,8 @@ mean_forecasts <- timeseriesforecasts$mean
 # (as they did in "Modeling Heterogeneous Time Series Dynamics to Profile Big Sensor Data in
 # Complex Physical Systems)
 
-thr <- 1.9 * sd(unlist(train_data[signal]))
+# 1.9
+thr <- 2 * sd(unlist(train_data[signal]))
 
 # Computation of the Labels
 predictions <- ((abs(mean_forecasts - unlist(test_data[signal])))>thr)*1

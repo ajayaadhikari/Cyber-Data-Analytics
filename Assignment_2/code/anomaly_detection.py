@@ -14,7 +14,6 @@ normal_data_path = os.path.join('..', 'data', 'SWaT_Dataset_Normal_v0.csv')
 def read_from_file():
     print("Reading Attack and Normal dataset from file.")
     converters = {'Normal/Attack': lambda x: 1 if (x == "A ttack" or x == "Attack") else 0}
-    #converters = {'Normal/Attack': lambda x: "Attack" if x == "A ttack" else x}
 
     attack_data = pd.read_csv(attack_data_path, skip_blank_lines=True, skiprows=1, converters=converters)
     normal_data = pd.read_csv(normal_data_path, skip_blank_lines=True, skiprows=1, converters=converters)
@@ -141,18 +140,12 @@ def get_sampled_and_normalized_dataset_arma(seconds):
     else:
         print("Before sampling (training set): %s records." % (training_set.shape,))
         print("Before sampling (testing set): %s records." % (testing_set.shape,))
-        print(list(training_set))
 
         training_set_sampled = training_set.groupby(np.arange(len(training_set)) // seconds).mean()
-
         training_set_sampled.ix[training_set_sampled["Normal/Attack"] > 0, 'Normal/Attack'] = 1
-
-        #training_set_sampled.iloc[:, -1] = training_set_sampled.iloc[:, -1].round()
 
         testing_set_sampled = testing_set.groupby(np.arange(len(testing_set)) // seconds).mean()
         testing_set_sampled.ix[testing_set_sampled["Normal/Attack"] > 0, 'Normal/Attack'] = 1
-
-        #testing_set_sampled.iloc[:, -1] = testing_set_sampled.iloc[:, -1].round()
 
         print("After sampling (training set): %s records." % (training_set_sampled.shape,))
         print("After sampling (testing set): %s records." % (testing_set_sampled.shape,))
@@ -227,7 +220,7 @@ def get_high_low_projection_matrices(pca, index_threshold):
     low_variance_projection_matrix = (np.identity(len(high_variance_projection_matrix)) - high_variance_projection_matrix)
     return high_variance_projection_matrix, low_variance_projection_matrix
 
-def evaluate_pca_anomoly_dectection(training_data, testing_data, testing_labels):
+def evaluate_pca_anomaly_dectection(training_data, testing_data, testing_labels):
     pca = get_pca(training_data)
     index_threshold = get_threshold_index(pca.explained_variance_ratio_, threshold_high_variability)
     high_variance_projection_matrix, low_variance_projection_matrix = get_high_low_projection_matrices(pca, index_threshold)
@@ -264,14 +257,14 @@ def evaluate_pca_anomoly_dectection(training_data, testing_data, testing_labels)
 # PCA #
 #######
 #training_set, testing_set, testing_labels = get_sampled_and_normalized_dataset()
-3#evaluate_pca_anomoly_dectection(training_set, testing_set, testing_labels)
+#evaluate_pca_anomaly_dectection(training_set, testing_set, testing_labels)
 
 
 ########
 # ARMA #
 ########
 
-training_set, testing_set = get_sampled_and_normalized_dataset_arma(900)
+training_set, testing_set = get_sampled_and_normalized_dataset_arma(120)
 print training_set["Normal/Attack"]
 print training_set.shape
 print testing_set.shape
