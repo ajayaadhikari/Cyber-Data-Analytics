@@ -144,7 +144,7 @@ def normalize_and_sample_testing_set(testing_set, sampling_rate):
     return normalize(sampled_testing_set), sampled_testing_labels
 
 
-def get_sampled_and_normalized_dataset_arma(seconds):
+def get_sampled_dataset_arma(seconds):
     # Get the training and testing sets
     training_set, testing_set = get_training_testing_data()
 
@@ -302,17 +302,17 @@ def evaluate_pca_anomoly_dectection(training_data, testing_data, testing_labels)
 #######
 #training_set, testing_set, testing_labels = get_sampled_and_normalized_dataset()
 
-training_set, testing_set, testing_labels = get_sampled_and_normalized_dataset_pca(120, 0.4)
-evaluate_pca_anomoly_dectection(training_set, testing_set, testing_labels)
+#training_set, testing_set, testing_labels = get_sampled_and_normalized_dataset_pca(120, 0.4)
+#evaluate_pca_anomoly_dectection(training_set, testing_set, testing_labels)
 
 ########
 # ARMA #
 ########
 
-#training_set, testing_set = get_sampled_and_normalized_dataset_arma(900)
+training_set, testing_set = get_sampled_dataset_arma(900)
 #print training_set["Normal/Attack"]
 #print training_set.shape
 #print testing_set.shape
-#write_to_file_arma(training_set, testing_set)
-x
+write_to_file_arma(training_set, testing_set)
+
 
