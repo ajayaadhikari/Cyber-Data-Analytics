@@ -44,21 +44,28 @@ def pre_process(attack_df, normal_df):
     attack_df.columns = strip(attack_df.columns.tolist())
     normal_df.columns = strip(normal_df.columns.tolist())
 
+    print("* Splitting in training and testing set")
     # Create training and testing data frames
     first_attack_row_index = -1
-    print attack_df.iloc[:,-1].unique()
     for index, row in attack_df.iterrows():
         #change "attack to 1"
         if row['Normal/Attack'] == 1:
             first_attack_row_index = index
-            print "ok"
             break
-    print attack_df.iloc[1754,-1]
-    print first_attack_row_index
+
     df_before_attack = attack_df.iloc[:first_attack_row_index, :]
     training_set = pd.concat([normal_df, df_before_attack])
     testing_set = attack_df.iloc[first_attack_row_index:, :]
-    print testing_set.shape
+
+    print("* Removing actuators")
+    columns = list(training_set)
+    # For all columns except the label
+    # remove actuators: values '1', '2'
+    for column in columns[:-1]:
+        if len(training_set[column].unique()) < 3:
+            del training_set[column]
+            del testing_set[column]
+
     print("\t\tDone.")
     return training_set, testing_set
 
@@ -105,13 +112,6 @@ def get_sampled_and_normalized_dataset_pca(training_sampling_seconds_range, test
 
     training_set, testing_set = get_training_testing_data()
     print("Removing actuators' signals")
-    columns = list(training_set)
-    # for all columns except the label
-    # remove actuators: values '1', '2'
-    for column in columns[:-1]:
-        if len(training_set[column].unique()) < 3:
-            del training_set[column]
-            del testing_set[column]
 
     print("Before sampling (training set): %s records." % (training_set.shape,))
     print("Before sampling (testing set): %s records." % (testing_set.shape,))
@@ -148,14 +148,7 @@ def normalize_and_sample_testing_set(testing_set, sampling_rate):
 def get_sampled_and_normalized_dataset_arma(seconds):
     # Get the training and testing sets
     training_set, testing_set = get_training_testing_data()
-    print("Removing actuators' signals")
-    columns = list(training_set)
-    # for all columns except the label
-    # remove actuators: values '1', '2'
-    for column in columns[:-1]:
-        if len(training_set[column].unique()) < 3:
-            del training_set[column]
-            del testing_set[column]
+
     if seconds == 1:
         training_set_sampled = training_set
         testing_set_sampled = testing_set
