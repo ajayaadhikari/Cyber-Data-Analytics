@@ -5,7 +5,6 @@ import numpy as np
 from sklearn.preprocessing import normalize,scale
 from sklearn.decomposition import IncrementalPCA
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix
 from collections import Counter
 #################################################################################
 ############################## Read data from file ##############################
@@ -17,7 +16,6 @@ normal_data_path = os.path.join('..', 'data', 'SWaT_Dataset_Normal_v0.csv')
 def read_from_file():
     print("Reading Attack and Normal dataset from file.")
     converters = {'Normal/Attack': lambda x: 1 if (x == "A ttack" or x == "Attack") else 0}
-    #converters = {'Normal/Attack': lambda x: "Attack" if x == "A ttack" else x}
 
     attack_data = pd.read_csv(attack_data_path, skip_blank_lines=True, skiprows=1, converters=converters)
     normal_data = pd.read_csv(normal_data_path, skip_blank_lines=True, skiprows=1, converters=converters)
@@ -110,17 +108,12 @@ def nomalize_training_set(training_set):
 def normalize(np_dataset):
     return (np_dataset - np_dataset.mean(axis=0))/np_dataset.std(axis=0)
 
-def get_sampled_and_normalized_dataset_pca(training_sampling_seconds_range, testing_sampling_rate):
+def get_sampled_and_normalized_dataset_pca(seconds, testing_sampling_rate):
 
     training_set, testing_set = get_training_testing_data()
-    print("Removing actuators' signals")
-
-    print("Before sampling (training set): %s records." % (training_set.shape,))
-    print("Before sampling (testing set): %s records." % (testing_set.shape,))
-    print(list(training_set))
 
     training_set = training_set.drop(["Normal/Attack", "Timestamp"], axis=1)
-    training_set_sampled = training_set.groupby(np.arange(len(training_set)) // training_sampling_seconds_range).mean()
+    training_set_sampled = training_set.groupby(np.arange(len(training_set)) // seconds).mean()
     training_set_sampled = normalize(training_set_sampled.values)
 
     testing_set_sampled, testing_labels = normalize_and_sample_testing_set(testing_set, testing_sampling_rate)
@@ -152,7 +145,7 @@ def normalize_and_sample_testing_set(testing_set, sampling_rate):
     return normalize(sampled_testing_set), sampled_testing_labels
 
 
-def get_sampled_and_normalized_dataset_arma(seconds):
+def get_sampled_dataset_arma(seconds):
     # Get the training and testing sets
     training_set, testing_set = get_training_testing_data()
 
@@ -162,20 +155,12 @@ def get_sampled_and_normalized_dataset_arma(seconds):
     else:
         print("Before sampling (training set): %s records." % (training_set.shape,))
         print("Before sampling (testing set): %s records." % (testing_set.shape,))
-        print(list(training_set))
 
         training_set_sampled = training_set.groupby(np.arange(len(training_set)) // seconds).mean()
-        print(list(training_set_sampled))
-
-
-        training_set_sampled.ix[training_set_sampled["Normal/Attack"] > 0, "Normal/Attack"] = 1
-
-        #training_set_sampled.iloc[:, -1] = training_set_sampled.iloc[:, -1].round()
+        training_set_sampled.ix[training_set_sampled["Normal/Attack"] > 0, 'Normal/Attack'] = 1
 
         testing_set_sampled = testing_set.groupby(np.arange(len(testing_set)) // seconds).mean()
         testing_set_sampled.ix[testing_set_sampled["Normal/Attack"] > 0, 'Normal/Attack'] = 1
-
-        #testing_set_sampled.iloc[:, -1] = testing_set_sampled.iloc[:, -1].round()
 
         print("After sampling (training set): %s records." % (training_set_sampled.shape,))
         print("After sampling (testing set): %s records." % (testing_set_sampled.shape,))
@@ -224,7 +209,6 @@ def correlation_matrix(df):
 #################################################################################
 ############################ PCA-based anomaly detection ########################
 #################################################################################
-threshold_high_variability = 0.99
 def get_pca(training_data):
     # Get the principal components
     print("Applying PCA!!")
@@ -243,7 +227,15 @@ def get_threshold_index(variance_per_eigenvector, threshold):
             break
     return index_threshold
 
-def get_high_low_projection_matrices(pca, index_threshold):
+def get_high_low_projection_matrices(training_data):
+    threshold_high_variability = 0.99
+
+    # Get the all the eigen vectors of the feature vector
+    pca = get_pca(training_data)
+
+    # Get the index of the eigen vector which captures the accumulative variability of 99%
+    index_threshold = get_threshold_index(pca.explained_variance_ratio_, threshold_high_variability)
+
     # Get the subspaces with high and low variance
     principle_components = pca.components_[:index_threshold + 1, :]
     high_variance_projection_matrix = np.dot(np.transpose(principle_components), principle_components)
@@ -253,31 +245,22 @@ def get_high_low_projection_matrices(pca, index_threshold):
 def predict(container, threshold):
     return map(lambda value: 0 if value<threshold else 1, container)
 
-def evaluate_pca_anomoly_dectection(training_data, testing_data, testing_labels):
-    pca = get_pca(training_data)
-    index_threshold = get_threshold_index(pca.explained_variance_ratio_, threshold_high_variability)
-    high_variance_projection_matrix, low_variance_projection_matrix = get_high_low_projection_matrices(pca, index_threshold)
+def get_residuals(training_data, testing_data):
+    # Get the high variance and low variance space
+    high_variance_projection_matrix, low_variance_projection_matrix = get_high_low_projection_matrices(training_data)
 
-    # Get the residuals on the training set
-    residuals_training = []
+    # This lambda function returns the squared prediction error of a record
     squared_prediction_error = lambda v: np.square(np.linalg.norm(np.dot(low_variance_projection_matrix, np.transpose(v))))
-    for row in training_data:
-        SPE = squared_prediction_error(row)
-        residuals_training.append(SPE)
+    # This lambda function applies the squared_prediction_error on each of the record of a given container
+    compute_residuals = lambda container: map(lambda index: squared_prediction_error(container[index]), range(len(container)))
+
+    return compute_residuals(training_data), compute_residuals(testing_data)
+
     print(len(residuals_training))
     plt.plot(range(len(residuals_training)), residuals_training, "r:")
     plt.show()
-    plt.plot(range(201),residuals_training[0:201])
+    plt.plot(range(201), residuals_training[0:201])
     plt.show()
-
-    residuals_testing_normal = []
-    residuals_testing_attack = []
-    for index in range(len(testing_data)):
-        SPE = squared_prediction_error(testing_data[index])
-        if testing_labels[index] == 0:
-            residuals_testing_normal.append(SPE)
-        else:
-            residuals_testing_attack.append(SPE)
 
     #results = {"threshold":[], "TP":[], "FP":[], "TN":[], "FN":[]}
     #for i in range(10, 100):
@@ -324,17 +307,21 @@ def evaluate_pca_anomoly_dectection(training_data, testing_data, testing_labels)
 #######
 #training_set, testing_set, testing_labels = get_sampled_and_normalized_dataset()
 training_set, testing_set, testing_labels = get_sampled_and_normalized_dataset_pca(120, 0.005)
-evaluate_pca_anomoly_dectection(training_set, testing_set, testing_labels)
+training_residuals, testing_residuals = get_residuals(training_set, testing_set)
 
+plt.plot(range(len(training_residuals)), training_residuals, "r:")
+plt.show()
+#training_set, testing_set, testing_labels = get_sampled_and_normalized_dataset_pca(120, 0.4)
+#evaluate_pca_anomoly_dectection(training_set, testing_set, testing_labels)
 
 ########
 # ARMA #
 ########
 
-#training_set, testing_set = get_sampled_and_normalized_dataset_arma(900)
+training_set, testing_set = get_sampled_dataset_arma(900)
 #print training_set["Normal/Attack"]
 #print training_set.shape
 #print testing_set.shape
-#write_to_file_arma(training_set, testing_set)
+write_to_file_arma(training_set, testing_set)
 
 
