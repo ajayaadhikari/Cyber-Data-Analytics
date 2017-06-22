@@ -1,4 +1,5 @@
 import pandas as pd
+import operator
 
 # implementation of FREQUENT (Misra - Gries) algorithm
 def frequent(stream, k):
@@ -27,11 +28,16 @@ if __name__ == '__main__':
     #print(list(data))
 
     # initialize fraction
-    k = 10
+    k = 31
 
     # initialize stream
     stream = ["g","g","b","g","b","y","bl","b","g","b","g","b"]
 
     # find elements whose frequency exceeds 1/k fraction of the total count
-    #elements = frequent(stream_ips, k)
-    #print("Found %s elements over the total of %s elements" %(len(elements), len(stream_ips)))
+    elements = frequent(stream_ips, k)
+    sorted_el = sorted(elements.items(), key=operator.itemgetter(1), reverse = True)
+
+    for i in range(len(sorted_el)):
+        print(sorted_el[i])
+
+    print("Found %s elements over the total of %s elements" %(len(elements), len(stream_ips)))
