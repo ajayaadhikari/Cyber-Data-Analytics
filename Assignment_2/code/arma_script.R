@@ -32,7 +32,7 @@ test_ts <- ts(as.numeric(unlist(test_data[signal])), start =1)
 
 # plot the training and test sets
 #plot.ts(train_ts)
-#plot.ts(test_ts)
+#plot.ts(test_ts) 
 
 # Decomposing to better understand the signal's  components (not needed for the assignment)
 # components <- decompose(train_ts)
@@ -41,7 +41,7 @@ test_ts <- ts(as.numeric(unlist(test_data[signal])), start =1)
 # Automated forecasting using an ARIMA model
 # picks the model with the best AIC value
 number_of_predictions = length(test_ts) #predict all values for testing set
-fit <- auto.arima(train_ts)
+fit <- auto.arima(train_ts, d=0)
 #for (i in 1:10){
 #fit <- arima(train_ts, c(i,0,0))
 #AIC(fit)
