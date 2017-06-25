@@ -1,0 +1,10 @@
+FP = 0
+TN = 0
+FN = 0
+f1 = 0.999891996976
+recall = 0.999784017279
+confusion_matrix = [[7466    0]
+ [   1 4629]]
+precision = 1.0
+TP = 0
+accuracy = 0.999917328042
