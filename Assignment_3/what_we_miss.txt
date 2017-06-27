@@ -1,0 +1,4 @@
+Task 1: Better description of the data
+Task 2: last question -> count-min vs frequent (theory)
+Task 3: Report and ?
+Task 4: all
