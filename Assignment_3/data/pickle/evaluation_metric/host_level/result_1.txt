@@ -1,0 +1,6 @@
+f1 = 0.732054295084
+recall = 1.0
+confusion_matrix = [[  260 29985]
+ [    0 40961]]
+precision = 0.57735460773
+accuracy = 0.578897845687
