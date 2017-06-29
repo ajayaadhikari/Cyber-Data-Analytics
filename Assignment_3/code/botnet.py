@@ -96,6 +96,12 @@ def save_to_file(content, file_name):
     file_.close()
 
 
+def read_txt_file(file_name):
+    file_ = open(os.path.join("..", "data", "pickle", file_name), "r")
+    data = file_.read()
+    file_.close()
+    return data
+
 def save_feature_vectors(scenarios):
 
     def build_feature_vector(scenario):
@@ -197,8 +203,10 @@ def save_classification_error(scenarios, type):
         evaluation_metrics_str = reduce(lambda x, y: "%s\n%s" % (x,y), ["%s = %s" % (metric, evaluation_metrics[metric]) for metric in evaluation_metrics.keys()])
         save_to_file(evaluation_metrics_str, os.path.join("evaluation_metric", type, "result_%s.txt" % scenario))
 
-for scenario in scenarios:
-    save_groupings_scenarios([scenario])
-    save_feature_vectors([scenario])
-    save_classification_error([scenario], "host_level")
-    save_classification_error([scenario], "packet_level")
+#for scenario in scenarios:
+#    save_groupings_scenarios([scenario])
+#    save_feature_vectors([scenario])
+#    save_classification_error([scenario], "host_level")
+#    save_classification_error([scenario], "packet_level")
+
+print(read_from_file(os.path.join("evaluation_metric", "host_level", "result_1.txt" )))

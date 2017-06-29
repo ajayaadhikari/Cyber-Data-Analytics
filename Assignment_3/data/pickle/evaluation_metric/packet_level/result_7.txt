@@ -1,10 +1,6 @@
-FP = 0
-TN = 0
-FN = 0
 f1 = 0.975609756098
 recall = 0.952380952381
 confusion_matrix = [[1668    0]
  [   3   60]]
 precision = 1.0
-TP = 0
 accuracy = 0.998266897747
